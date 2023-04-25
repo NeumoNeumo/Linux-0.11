@@ -1,6 +1,6 @@
 # Linux-0.11 on x86 and x64
 
-The modified old Linux kernel source ver 0.11 to port to x86_64 system.
+The modified old Linux kernel source ver 0.11 to port to x86_64 system forked from yuan-xy/Linux-0.11.
 
 ## 1. Build on Linux
 
