@@ -19,7 +19,7 @@ RAMDISK =  #-DRAMDISK=512
 # This is a basic Makefile for setting the general configuration
 include Makefile.header
 
-# TODO
+# TODO64
 LDFLAGS += -Ttext 0 -e startup_32
 CFLAGS  += $(RAMDISK) -Iinclude
 CPP     += -Iinclude
@@ -106,6 +106,8 @@ clean:
 	@rm -f Image System.map tmp_make core boot/bootsect boot/setup
 	@rm -f init/*.o tools/system boot/*.o typescript* info bochsout.txt
 	@for i in mm fs kernel lib boot; do make clean -C $$i; done 
+	@git restore hdc-0.11.img
+
 info:
 	@make clean
 	@script -q -c "make all"

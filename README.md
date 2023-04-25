@@ -1,24 +1,40 @@
-Linux-0.11
-==========
+# Linux-0.11 on x86 and x64
 
-The old Linux kernel source ver 0.11 which has been tested under modern Linux,  Mac OSX and Windows.
+The modified old Linux kernel source ver 0.11 to port to x86_64 system.
 
 ## 1. Build on Linux
 
 ### 1.1. Linux Setup
-
-* a linux distribution: debian , ubuntu and mint are recommended
+* a linux distribution: debian, ubuntu and mint are recommended
 * some tools: gcc gdb qemu
-* a linux-0.11 hardware image file: hdc-0.11.img, please download it from http://www.oldlinux.org, or http://mirror.lzu.edu.cn/os/oldlinux.org/, ant put it in the root directory.
-* Now, This version already support the Ubuntu 16.04, enjoy it.
+Pass test on Ubuntu 16.04 and 22.04.
+
+1. Modify the target in `Makefile.header` to indicate the architecture
+2. Run the following codes
+```bash
+$ make
+$ make start
+```
 
 ### 1.2. hack linux-0.11
 ```bash
-$ make help		// get help
-$ make  		// compile
-$ make start		// boot it on qemu
-$ make debug		// debug it via qemu & gdb, you'd start gdb to connect it.
+$ make help     // get help
+$ make          // compile
+$ make start    // boot it on qemu
+$ make debug    // debug it via qemu with gdb or lldb
 ```
+
+lldb(recommended):
+
+```lldb
+$ lldb
+(lldb) gdb-remote 1234
+(lldb) b main
+(lldb) c
+```
+
+gdb:
+
 ```gdb
 $ gdb tools/system
 (gdb) target remote :1234
@@ -26,32 +42,28 @@ $ gdb tools/system
 (gdb) c
 ```
 
-## 2. Build on Mac OS X
 
-### 2.1. Mac OS X Setup
+# 2. Port to x86_64
+## 2.1 Special Marks
+You can search these marks globally in this repo to check them.
+1. TODO64: something to be done to port to x86_64
 
-* install cross compiler gcc and binutils
-* install qemu
-* install gdb. you need download the gdb source and compile it to use gdb because port doesn't provide i386-elf-gdb, or you can use the pre-compiled gdb in the tools directory.
-* a linux-0.11 hardware image file: hdc-0.11.img
+## 2.2 Difference between x86 and x86_64
+Here are some differences between x86 and x86_64 to provides an overview to what
+is ought to be modified in this repo. Please append the source and
+highlight the key points.
 
-```bash
-$ sudo port install qemu
-$ sudo port install i386-elf-binutils i386-elf-gcc
-```
+1. Register: long mode extends general registers to 64 bits (RAX, RBX, RIP, RSP,
+   RFLAGS, etc), and adds eight additional integer registers (R8, R9, ..., R15)
+   plus eight more SSE registers (XMM8 to XMM15) to the CPU. **Long mode
+   needs to be enabled to turn on this extension.**(Prof. Zhang says we must use
+   long mode)
+   [source](https://wiki.osdev.org/X86-64#How_do_I_enable_Long_Mode_.3F)
+2. Physical address space: extended to 52 bits (a given CPU may implement
+   less than this). In essence long mode adds another mode to the CPU.
+   [source](https://wiki.osdev.org/X86-64#How_do_I_enable_Long_Mode_.3F)
+3. 
 
-optional
-```bash
-$ wget ftp://ftp.gnu.org/gnu/gdb/gdb-7.4.tar.bz2
-$ tar -xzvf gdb-7.4.tar.bz2
-$ cd gdb-7.4
-$ ./configure --target=i386-elf
-$ make
-```
+# 3. Specification
+1. Before you commit, `make clean` to remove all the compiled files.
 
-### 2.2. hack linux-0.11
-same as section 1.2
-
-
-## 3. Build on Windows
-todo...
