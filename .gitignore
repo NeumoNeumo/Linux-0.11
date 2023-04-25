@@ -1,3 +1,8 @@
+Image
+System.map
+compile_commands.json
+*.o
+*.a
 Thumbs.db
 *.log
 *.bak

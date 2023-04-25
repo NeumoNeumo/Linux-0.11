@@ -1,4 +1,4 @@
-OS = Mac
+OS = Linux
 
 # indicate the Hardware Image file
 HDA_IMG = hdc-0.11.img
@@ -19,9 +19,10 @@ RAMDISK =  #-DRAMDISK=512
 # This is a basic Makefile for setting the general configuration
 include Makefile.header
 
-LDFLAGS	+= -Ttext 0 -e startup_32
-CFLAGS	+= $(RAMDISK) -Iinclude
-CPP	+= -Iinclude
+# TODO
+LDFLAGS += -Ttext 0 -e startup_32
+CFLAGS  += $(RAMDISK) -Iinclude
+CPP     += -Iinclude
 
 #
 # ROOT_DEV specifies the default root-device when making the image.
@@ -30,10 +31,10 @@ CPP	+= -Iinclude
 #
 ROOT_DEV= #FLOPPY 
 
-ARCHIVES=kernel/kernel.o mm/mm.o fs/fs.o
-DRIVERS =kernel/blk_drv/blk_drv.a kernel/chr_drv/chr_drv.a
-MATH	=kernel/math/math.a
-LIBS	=lib/lib.a
+ARCHIVES = kernel/kernel.o mm/mm.o fs/fs.o
+DRIVERS  = kernel/blk_drv/blk_drv.a kernel/chr_drv/chr_drv.a
+MATH     = kernel/math/math.a
+LIBS     = lib/lib.a
 
 .c.s:
 	@$(CC) $(CFLAGS) -S -o $*.s $<
