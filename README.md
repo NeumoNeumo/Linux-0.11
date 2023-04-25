@@ -42,6 +42,8 @@ $ gdb tools/system
 (gdb) c
 ```
 
+Hints:
+You may use [bear](https://github.com/rizsotto/Bear) to generate compilation database for clang tooling.
 
 # 2. Port to x86_64
 ## 2.1 Special Marks
