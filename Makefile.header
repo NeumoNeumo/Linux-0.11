@@ -1,5 +1,5 @@
 # Specify the target platform (x86 or x86_64)
-TARGET := x86
+TARGET := x86_64
 UNAME := $(shell uname)
 
 ifeq ($(TARGET), x86_64)

@@ -59,12 +59,34 @@ highlight the key points.
    RFLAGS, etc), and adds eight additional integer registers (R8, R9, ..., R15)
    plus eight more SSE registers (XMM8 to XMM15) to the CPU. **Long mode
    needs to be enabled to turn on this extension.**(Prof. Zhang says we must use
-   long mode)
+   64-bit long mode)
    [source](https://wiki.osdev.org/X86-64#How_do_I_enable_Long_Mode_.3F)
+
+![](img/README/x64_reg.png)
+
+from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%20Guide%20to%20x86-64.pdf)
+
 2. Physical address space: extended to 52 bits (a given CPU may implement
    less than this). In essence long mode adds another mode to the CPU.
    [source](https://wiki.osdev.org/X86-64#How_do_I_enable_Long_Mode_.3F)
 3. 
+
+## 2.3 Roadmap
+[ ] Activate long mode
+[ ] Setup paging
+
+### 2.3.1 Activate Long Mode
+Normal way:
+1. Intel 64 and IA-32 Architectures Software Developer's Manual, Section 9.8.5
+2. "How do I enable Long Mode ?" in https://wiki.osdev.org/X86-64
+
+Tricky way:
+1. https://wiki.osdev.org/Entering_Long_Mode_Directly
+2. "Entering Long Mode directly" in https://wiki.osdev.org/X86-64
+
+### 2.3.2 Setup Paging
+
+
 
 # 3. Specification
 1. Before you commit, `make clean` to remove all the compiled files.
