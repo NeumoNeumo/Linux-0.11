@@ -52,17 +52,18 @@ _start:
 	mov	%ax, %ds
 	mov	$INITSEG, %ax	#将es段寄存器设置为0x900
 	mov	%ax, %es
+  cld
 	mov	$256, %cx		#设置移动计数值256字
 	sub	%si, %si		#源地址	ds:si = 0x07C0:0x0000
 	sub	%di, %di		#目标地址 es:si = 0x9000:0x0000
 	rep					#重复执行并递减cx的值
 	movsw				#从内存[si]处移动cx个字到[di]处
 	ljmp	$INITSEG, $go	#段间跳转，这里INITSEG指出跳转到的段地址，解释了cs的值为0x9000
-go:	mov	%cs, %ax		#将ds，es，ss都设置成移动后代码所在的段处(0x9000)
+go:	
+  mov	%cs, %ax		#将ds，es，ss都设置成移动后代码所在的段处(0x9000)
 	mov	%ax, %ds
 	mov	%ax, %es
-# put stack at 0x9ff00.
-	mov	%ax, %ss
+	mov	%ax, %ss # put stack at 0x9ff00.
 	mov	$0xFF00, %sp		# arbitrary value >>512
 
 # load the setup-sectors directly after the bootblock.
@@ -101,15 +102,14 @@ ok_load_setup:
 	mov	%ax, %es
 
 # Print some inane message
-
 	mov	$0x03, %ah		# read cursor pos
 	xor	%bh, %bh
 	int	$0x10
 	
 	mov	$30, %cx
 	mov	$0x0007, %bx		# page 0, attribute 7 (normal)
-	#lea	msg1, %bp
-	mov     $msg1, %bp
+	lea	msg1, %bp
+# mov $msg1, %bp
 	mov	$0x1301, %ax		# write string, move cursor
 	int	$0x10
 
@@ -163,7 +163,8 @@ track:	.word 0			# current track
 read_it:
 	mov	%es, %ax
 	test	$0x0fff, %ax
-die:	jne 	die			# es must be at 64kB boundary
+die:	
+  jne 	die			# es must be at 64kB boundary
 	xor 	%bx, %bx		# bx is starting address within segment
 rp_read:
 	mov 	%es, %ax
@@ -255,7 +256,7 @@ sectors:
 
 msg1:
 	.byte 13,10
-	.ascii "IceCityOS is booting ..."
+	.ascii "Linux0.11 is booting ..."
 	.byte 13,10,13,10
 
 	.org 508
