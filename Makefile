@@ -53,7 +53,7 @@ all: Image
 
 Image: boot/bootsect boot/setup tools/system
 	@cp -f tools/system system.tmp
-	# @$(STRIP) system.tmp
+	@$(STRIP) system.tmp
 	@$(OBJCOPY) -O binary -R .note -R .comment system.tmp tools/kernel
 	@tools/build.sh boot/bootsect boot/setup tools/kernel Image $(ROOT_DEV)
 	@rm system.tmp
@@ -145,17 +145,17 @@ cscope:
 
 start:
 ifeq ($(TARGET), x86)
-	@qemu-system-i386 -m 16M -boot a -fda Image -hda $(HDA_IMG)
+	@qemu-system-i386 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
 else
-	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG)
-end
+	@qemu-system-x86_64 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
+endif
 
 debug:
 ifeq ($(TARGET), x86)
-	@qemu-system-i386 -m 16M -boot a -fda Image -hda $(HDA_IMG) -s -S
+	@qemu-system-i386 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
 else
-	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG) -s -S
-end
+	@qemu-system-x86_64 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
+endif
 
 bochs-debug:
 	@$(BOCHS) -q -f tools/bochs/bochsrc/bochsrc-hd-dbg.bxrc	
