@@ -144,10 +144,18 @@ cscope:
 	@cscope -Rbkq
 
 start:
+ifeq ($(TARGET), x86)
 	@qemu-system-i386 -m 16M -boot a -fda Image -hda $(HDA_IMG)
+else
+	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG)
+end
 
 debug:
+ifeq ($(TARGET), x86)
 	@qemu-system-i386 -m 16M -boot a -fda Image -hda $(HDA_IMG) -s -S
+else
+	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG) -s -S
+end
 
 bochs-debug:
 	@$(BOCHS) -q -f tools/bochs/bochsrc/bochsrc-hd-dbg.bxrc	
