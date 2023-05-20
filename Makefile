@@ -20,9 +20,15 @@ RAMDISK =  #-DRAMDISK=512
 include Makefile.header
 
 # TODO64
-LDFLAGS += -Ttext 0 -e startup_32
-CFLAGS  += $(RAMDISK) -Iinclude
-CPP     += -Iinclude
+ifeq ($(TARGET), x86)
+	LDFLAGS += -Ttext 0 -e startup_32
+	CFLAGS  += $(RAMDISK) -Iinclude
+	CPP     += -Iinclude
+else
+	LDFLAGS += -Ttext 0 -e startup_64
+	CFLAGS  += $(RAMDISK) -Iinclude
+	CPP     += -Iinclude
+endif
 
 #
 # ROOT_DEV specifies the default root-device when making the image.
@@ -43,11 +49,11 @@ LIBS     = lib/lib.a
 .c.o:
 	@$(CC) $(CFLAGS) -c -o $*.o $<
 
-all:	Image	
+all: Image	
 
 Image: boot/bootsect boot/setup tools/system
 	@cp -f tools/system system.tmp
-	@$(STRIP) system.tmp
+	# @$(STRIP) system.tmp
 	@$(OBJCOPY) -O binary -R .note -R .comment system.tmp tools/kernel
 	@tools/build.sh boot/bootsect boot/setup tools/kernel Image $(ROOT_DEV)
 	@rm system.tmp
@@ -138,11 +144,10 @@ cscope:
 	@cscope -Rbkq
 
 start:
-	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG)
+	@qemu-system-i386 -m 16M -boot a -fda Image -hda $(HDA_IMG)
 
 debug:
-	@echo $(OS)
-	@qemu-system-x86_64 -m 16M -boot a -fda Image -hda $(HDA_IMG) -s -S
+	@qemu-system-i386 -m 16M -boot a -fda Image -hda $(HDA_IMG) -s -S
 
 bochs-debug:
 	@$(BOCHS) -q -f tools/bochs/bochsrc/bochsrc-hd-dbg.bxrc	
@@ -201,7 +206,7 @@ help:
 	@echo "     used in ubuntu|debian 32bit|64bit with gcc 4.3.2, and give some new "
 	@echo "     features for experimenting. such as this help info, boot/bootsect.s and"
 	@echo "     boot/setup.s with AT&T rewritting, porting to gcc 4.3.2 :-)"
-	@echo ""
+	@echo "     * 2023, Sophomores@SUSTech port the system to x86_64"
 	@echo "<<<Be Happy To Play With It :-)>>>"
 
 ### Dependencies:

@@ -27,7 +27,7 @@ $ make debug    // debug it via qemu with gdb or lldb
 lldb(recommended):
 
 ```lldb
-$ lldb
+$ lldb tools/system
 (lldb) gdb-remote 1234
 (lldb) b main
 (lldb) c
@@ -72,6 +72,7 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 3. 
 
 ## 2.3 Roadmap
+[ ] Flash disk boot
 [ ] Activate long mode
 [ ] Setup paging
 

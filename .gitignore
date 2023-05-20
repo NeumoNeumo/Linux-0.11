@@ -7,4 +7,6 @@ Thumbs.db
 *.log
 *.bak
 .DS_Store
+boot/bootsect
+boot/setup
 
