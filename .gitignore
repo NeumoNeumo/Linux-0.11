@@ -9,4 +9,5 @@ Thumbs.db
 .DS_Store
 boot/bootsect
 boot/setup
+.cache
 

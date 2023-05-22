@@ -170,6 +170,12 @@ endif
 bochs-clean:
 	@make clean -C tools/bochs/bochs-2.3.7
 
+lldb-as:
+	@lldb --local-lldbinit
+
+lldb-src:
+	@lldb --local-lldbinit tools/system
+
 calltree:
 ifeq ($(CALLTREE),)
 	@make -C tools/calltree-2.3

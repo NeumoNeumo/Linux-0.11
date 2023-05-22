@@ -286,7 +286,7 @@ end_move:
 	#mov	$0x0001, %ax	# protected mode (PE) bit
 	#lmsw	%ax		# This is it!
 	mov	%cr0, %eax	# get machine status(cr0|MSW)	
-	bts	$0, %eax	# turn on the PE-bit 
+	bts	$0, %eax	# turn on the PE-bit (Protection Enable)
 	mov	%eax, %cr0	# protection enabled
 				
 				# segment-descriptor        (INDEX:TI:RPL)

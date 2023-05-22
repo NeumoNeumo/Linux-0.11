@@ -75,6 +75,7 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 [ ] Flash disk boot
 [ ] Activate long mode
 [ ] Setup paging
+[ ] VGA 256-color
 
 ### 2.3.1 Activate Long Mode
 Normal way:
