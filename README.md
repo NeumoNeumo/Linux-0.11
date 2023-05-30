@@ -98,7 +98,7 @@ Tricky way:
 
 # 4. General Process
 
-## Boot
+## Boot(x86)
 
 1. bootsect.s: BIOS starts from F000:FFF0 which is directly mapped to ROM. BIOS
    load the MBR to 0x7c00 and run it. Bootsect moves itself to 0x90000 and long
@@ -114,6 +114,34 @@ Tricky way:
 
 3. head.s: reconfigure to idt and tmp2_gdt. Check A20. Check the coprocessor.
    Enter main.c
+
+## Boot(x64)
+
+1. bootsect.s (16-bit compiled)
+- Starts from F000:FFF0
+- Load the MBR to 0x7c00
+- Move to 0x90000 (Why?)
+- Use BIOS interrupt 0x13 to read the left boot.
+- Load the systemat 0x10000. (Why?)
+- Far jump to 0x90200 (Why?)
+
+2. setup.s (16/32/64-bit compiled)
+- Load some system info (Why?)
+- Move the system from 0x10000-0x90000 to 0x0.
+- **Load gdt.**
+- Enable A20.
+- Program PIC.
+- Enable protection.
+- **Enter long mode(32-bit compiled)**
+  - Set gdt
+  - Set paging
+  - Set PAE, PG, PML4, 
+  - Long jump to 0(0x5000)(64-bit)
+
+3. head.s (64-bit compiled): 
+- *Reconfigure idtr and gdtr.*(Failed here) 😭
+- *Check A20. Check the coprocessor(Moved to setup.s)*
+- Jump to main.c
 
 # 5. FAQ
 1. Why do we need to setup gdt/paging in setup64.s since we will reset it in
