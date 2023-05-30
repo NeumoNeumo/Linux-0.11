@@ -3,7 +3,7 @@
  */
 
 /*
- *  head.s contains the 64-bit startup code.
+ *  head64.s contains the 64-bit startup code.
  *
  * NOTE!!! Startup happens at absolute address 0x00000000, which is also where
  * the page directory will exist. The startup code will be overwritten by
@@ -11,7 +11,34 @@
  */
 .text
 .globl idt,gdt,pg_dir,tmp_floppy_area
+
 pg_dir:
+/*
+ * I put the kernel page tables right after the page directory,
+ * using 3 of them to span 128 MB of physical memory. People with
+ * more than 128MB will have to expand this.
+ */
+PML4:
+  .quad 0x1007  # PDPT_0
+  .rept 0x1ff
+    .quad 0
+  .endr
+PDPT_0: # Not all processors that support IA-32e paging support 1 pages
+  .quad 0x2007 # PD_0
+  .rept 0x1ff
+    .quad 0
+  .endr
+PD_0:
+  .set i, 0
+  .rept 64    # 64*2=128MB
+    .quad (i << 21)+0x87
+    .set i, (i+1)
+  .endr
+  .rept 512-64
+    .quad 0
+  .endr
+
+.org 0x5000
 .globl startup_64
 startup_64:
 	movl $0x10,%eax
@@ -19,50 +46,34 @@ startup_64:
 	mov %ax,%es
 	mov %ax,%fs
 	mov %ax,%gs
-	lss stack_start,%esp
-	call setup_idt
+
+  mov $0x1234, %eax
+  mov $0x6000, %ebx
+  mov %eax, (%ebx)
+
+l:
+  jmp l
+
+  lssl stack_start,%esp
 	call setup_gdt
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		# after changing gdt. CS was already
 	mov %ax,%es		# reloaded in 'setup_gdt'
 	mov %ax,%fs
 	mov %ax,%gs
-	lss stack_start,%esp
+# lssl stack_start,%esp # TODO
+	call setup_idt
 	xorl %eax,%eax
 1:	incl %eax		# check that A20 really IS enabled
 	movl %eax,0x000000	# loop forever if it isn't
 	cmpl %eax,0x100000
 	je 1b
 
-/*
- * NOTE! 486 should set bit 16, to check for write-protect in supervisor
- * mode. Then it would be unnecessary with the "verify_area()"-calls.
- * 486 users probably want to set the NE (#5) bit also, so as to use
- * int 16 for math errors.
- */
-	movl %cr0,%eax		# check math chip
-	andl $0x80000011,%eax	# Save PG,PE,ET
-/* "orl $0x10020,%eax" here for 486 might be good */
-	orl $2,%eax		# set MP
-	movl %eax,%cr0
-	call check_x87
-	jmp after_page_tables
+loop:
+  jmp loop
 
-/*
- * We depend on ET to be correct. This checks for 287/387.
- */
-check_x87:
-	fninit
-	fstsw %ax
-	cmpb $0,%al
-	je 1f			/* no coprocessor: have to set bits */
-	movl %cr0,%eax
-	xorl $6,%eax		/* reset MP, set EM */
-	movl %eax,%cr0
-	ret
-.align 2
-1:	.byte 0xDB,0xE4		/* fsetpm for 287, ignored by 387 */
-	ret
+# pushq $main # TODO main
+# ret
 
 /*
  *  setup_idt
@@ -75,18 +86,22 @@ check_x87:
  *  sure everything is ok. This routine will be over-
  *  written by the page tables.
  */
+
 setup_idt:
 	lea ignore_int,%edx
-	movl $0x00080000,%eax
-	movw %dx,%ax		/* selector = 0x0008 = cs */
+	movl $0x00080000,%eax /* selector = 0x0008 = cs */
+	movw %dx,%ax
 	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
+  xorl %ebx, %ebx
 
 	lea idt,%edi
 	mov $256,%ecx
 rp_sidt:
 	movl %eax,(%edi)
 	movl %edx,4(%edi)
-	addl $8,%edi
+  movq %rbx,8(%edi)
+# movl %ebx,12(%edi)
+	addl $16,%edi
 	dec %ecx
 	jne rp_sidt
 	lidt idt_descr
@@ -107,24 +122,6 @@ setup_gdt:
 	ret
 
 /*
- * I put the kernel page tables right after the page directory,
- * using 4 of them to span 16 Mb of physical memory. People with
- * more than 16MB will have to expand this.
- */
-.org 0x1000
-pg0:
-
-.org 0x2000
-pg1:
-
-.org 0x3000
-pg2:
-
-.org 0x4000
-pg3:
-
-.org 0x5000
-/*
  * tmp_floppy_area is used by the floppy-driver when DMA cannot
  * reach to a buffer-block. It needs to be aligned, so that it isn't
  * on a 64kB border.
@@ -132,50 +129,44 @@ pg3:
 tmp_floppy_area:
 	.fill 1024,1,0
 
-after_page_tables:
-	pushl $0		# These are the parameters to main :-)
-	pushl $0
-	pushl $0
-	pushl $L6		# return address for main, if it decides to.
-	pushl $main
-	jmp setup_paging
-L6:
-	jmp L6			# main should never return here, but
-				# just in case, we know what happens.
-
 /* This is the default interrupt "handler" :-) */
 int_msg:
 	.asciz "Unknown interrupt\n\r"
-.align 2
+.align 4
 ignore_int:
-	pushl %eax
-	pushl %ecx
-	pushl %edx
-	push %ds
-	push %es
-	push %fs
-	movl $0x10,%eax
+	pushq %rax
+	pushq %rcx
+	pushq %rdx
+  movw %ds, %ax
+  pushw %ax
+  movw %es, %ax
+  pushw %ax
+  movw %fs, %ax
+  pushw %ax
+	mov $0x10,%ax
 	mov %ax,%ds
 	mov %ax,%es
 	mov %ax,%fs
-	pushl $int_msg
-	call printk
-	popl %eax
-	pop %fs
-	pop %es
-	pop %ds
-	popl %edx
-	popl %ecx
-	popl %eax
-	iret
-
+	pushq $int_msg
+# call printk      // TODO
+	popq %rax
+  popw %ax
+  movw %ax, %fs
+  popw %ax
+  movw %ax, %es
+  popw %ax
+  movw %ax, %ds
+	popq %rdx
+	popq %rcx
+	popq %rax
+	iretq
 
 /*
  * Setup_paging
  *
  * This routine sets up paging by setting the page bit
  * in cr0. The page tables are set up, identity-mapping
- * the first 16MB. The pager assumes that no illegal
+ * the first 128MB. The pager assumes that no illegal
  * addresses are produced (ie >4Mb on a 4Mb machine).
  *
  * NOTE! Although all physical memory should be identity
@@ -184,56 +175,43 @@ ignore_int:
  * use just the lower 1Mb, or the local data space, which
  * will be mapped to some other place - mm keeps track of
  * that.
- *
- * For those with more memory than 16 Mb - tough luck. I've
- * not got it, why should you :-) The source is here. Change
- * it. (Seriously - it shouldn't be too difficult. Mostly
- * change some constants etc. I left it at 16Mb, as my machine
- * even cannot be extended past that (ok, but it was cheap :-)
- * I've tried to show which constants to change by having
- * some kind of marker at them (search for "16Mb"), but I
- * won't guarantee that's all :-( )
  */
-.align 2
-setup_paging:
-	movl $1024*5,%ecx		/* 5 pages - pg_dir+4 page tables */
-	xorl %eax,%eax
-	xorl %edi,%edi			/* pg_dir is at 0x000 */
-	cld;rep;stosl
-	movl $pg0+7,pg_dir		/* set present bit/user r/w */
-	movl $pg1+7,pg_dir+4		/*  --------- " " --------- */
-	movl $pg2+7,pg_dir+8		/*  --------- " " --------- */
-	movl $pg3+7,pg_dir+12		/*  --------- " " --------- */
-	movl $pg3+4092,%edi
-	movl $0xfff007,%eax		/*  16Mb - 4096 + 7 (r/w user,p) */
-	std
-1:	stosl			/* fill pages backwards - more efficient :-) */
-	subl $0x1000,%eax
-	jge 1b
-	cld
-	xorl %eax,%eax		/* pg_dir is at 0x0000 */
-	movl %eax,%cr3		/* cr3 - page directory start */
-	movl %cr0,%eax
-	orl $0x80000000,%eax
-	movl %eax,%cr0		/* set paging (PG) bit */
-	ret			/* this also flushes prefetch-queue */
+#.align 4
+#setup_paging:
+#  movl PML4, %esi
+#  xorl %edi, %edi
+#  movl $0xc00, $ecx       # 3*4KB/4B=3K
+#  cld;rep;movsl
+#
+#  movq %cr4, %rax
+#	xorl %eax,%eax		/* pg_dir is at 0x0000 */
+#	movl %eax,%cr3		/* cr3 - page directory start */
+#	movl %cr0,%eax
+#	orl $0x80000000,%eax
+#	movl %eax,%cr0		/* set paging (PG) bit */
+#	ret			/* this also flushes prefetch-queue */
 
-.align 2
+.align 4
 .word 0
 idt_descr:
 	.word 256*8-1		# idt contains 256 entries
 	.long idt
-.align 2
+.align 4
 .word 0
 gdt_descr:
-	.word 256*8-1		# so does gdt (not that that's any
-	.long gdt		# magic number, but it works for me :^)
+	.word 256*16-1		# so does gdt (not that that's any
+	.quad gdt	      	# magic number, but it works for me :^)
 
-	.align 8
-idt:	.fill 256,8,0		# idt is uninitialized
+# In 64-bit processor, an entry in idt is 16B long.
+.align 16
+idt:	.fill 256*2,8,0		# idt is uninitialized
 
-gdt:	.quad 0x0000000000000000	/* NULL descriptor */
-	.quad 0x00c09a0000000fff	/* 16Mb */
-	.quad 0x00c0920000000fff	/* 16Mb */
-	.quad 0x0000000000000000	/* TEMPORARY - don't use */
-	.fill 252,8,0			/* space for LDT's and TSS's etc */
+.align 8
+gdt:
+	.quad	0, 0       # dummy
+  .long 0, 0x00209a00, 0, 0  # code readable in long mode
+  .long 0, 0x00209200, 0, 0  # data readable in long mode
+  .fill 504,8,0  # space for LDT's and TSS's etc (252*2=504)
+
+stack_start:    # TODO This should be removed after sched.c is compiled
+  .long 0x00026fa0, 0x10

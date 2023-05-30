@@ -49,6 +49,8 @@ LIBS     = lib/lib.a
 .c.o:
 	@$(CC) $(CFLAGS) -c -o $*.o $<
 
+.PHONY: all clean info distclean backup start debug lldb-as lldb-src help sofar sofard
+
 all: Image	
 
 Image: boot/bootsect boot/setup tools/system
@@ -147,14 +149,14 @@ start:
 ifeq ($(TARGET), x86)
 	@qemu-system-i386 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
 else
-	@qemu-system-x86_64 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
+	@qemu-system-x86_64 -m 128M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
 endif
 
 debug:
 ifeq ($(TARGET), x86)
 	@qemu-system-i386 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
 else
-	@qemu-system-x86_64 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
+	@qemu-system-x86_64 -m 128M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
 endif
 
 bochs-debug:
@@ -189,6 +191,24 @@ cg: callgraph
 callgraph:
 	@calltree -b -np -m init/main.c | tools/tree2dotx > linux-0.11.dot
 	@dot -Tjpg linux-0.11.dot -o linux-0.11.jpg
+
+sofar:
+	@make clean
+	@make -C boot
+	@make head.o -C boot/
+	@$(LD) $(LDFLAGS) -o tools/system boot/head.o
+	@nm tools/system | grep -v '\(compiled\)\|\(\.o$$\)\|\( [aU] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)'| sort > System.map 
+	@cp -f tools/system system.tmp
+	@$(STRIP) system.tmp
+	@$(OBJCOPY) -O binary -R .note -R .comment system.tmp tools/kernel
+	@tools/build.sh boot/bootsect boot/setup tools/kernel Image $(ROOT_DEV)
+	@rm system.tmp
+	@rm -f tools/kernel
+	@sync
+
+sofard:
+	@make sofar
+	@make debug
 
 help:
 	@echo "<<<<This is the basic help info of linux-0.11>>>"

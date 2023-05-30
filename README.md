@@ -1,6 +1,7 @@
 # Linux-0.11 on x86 and x64
 
-The modified old Linux kernel source ver 0.11 to port to x86_64 system forked from yuan-xy/Linux-0.11.
+The modified old Linux kernel source ver 0.11 to port to x86_64 system forked
+from yuan-xy/Linux-0.11.
 
 ## 1. Build on Linux
 
@@ -72,9 +73,11 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 3. 
 
 ## 2.3 Roadmap
-[ ] Flash disk boot
 [ ] Activate long mode
 [ ] Setup paging
+[ ] x86_64 Shell
+[ ] Higher Half Kernel
+[ ] Flash disk boot
 [ ] VGA 256-color
 
 ### 2.3.1 Activate Long Mode
@@ -93,3 +96,38 @@ Tricky way:
 # 3. Specification
 1. Before you commit, `make clean` to remove all the compiled files.
 
+# 4. General Process
+
+## Boot
+
+1. bootsect.s: BIOS starts from F000:FFF0 which is directly mapped to ROM. BIOS
+   load the MBR to 0x7c00 and run it. Bootsect moves itself to 0x90000 and long
+   jump to 0x9000:go. use BIOS interrupt 0x13 to read the next 4(SETUPLEN) to
+   0x90200. Then we load the system(0x3000(SYSSIZE) * 0x10 B)(196KB, currently
+   about 160KB) at 0x10000. Then long jump to 0x90200($SETUPSEG * 0x10)(used
+   lgdt in setup.s)
+
+2. setup.s: load some system info using BIOS interrupts to 0x90000(overwriting
+   bootsect). Move the system from 0x10000-0x90000 to 0x0. Load tmp_idt and
+   tmp_gdt. Enable A20. Program PIC. Enable protection. Long jump to 0, the
+   start of the system or head.s
+
+3. head.s: reconfigure to idt and tmp2_gdt. Check A20. Check the coprocessor.
+   Enter main.c
+
+# 5. FAQ
+1. Why do we need to setup gdt/paging in setup64.s since we will reset it in
+   head64.s?
+
+We want to use symbols in head64.s. So head64.s must be compile with `as
+--64` to be consistent with other source files. However, when using `as --64`,
+the compiler will assume that we are already in the long mode. So we need to
+enter long mode before executing head64.s. One must setup a GDT in preparation
+for long mode. Therefore, a GDT is required in setup64.s. The same applies to
+
+2. Why lldb disassemble incorrectly in real mode?
+
+a. Wrong address: https://github.com/llvm/llvm-project/issues/62835
+
+b. Wrong mode: lldb disassemble in protected mode by default which is different
+when decoding some commands compared to real mode.
