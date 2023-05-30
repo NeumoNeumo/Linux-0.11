@@ -2,10 +2,10 @@
 # rewrite with AT&T syntax by falcon <wuzhangjin@gmail.com> at 081012
 #
 # SYS_SIZE is the number of clicks (16 bytes) to be loaded.
-# 0x3000 is 0x30000 bytes = 196kB, more than enough for current
+# 0x6000 is 0x60000 bytes = 392kB, more than enough for current
 # versions of linux
 #
-	.equ SYSSIZE, 0x3000
+	.equ SYSSIZE, 0x6000
 #
 #	bootsect.s		(C) 1991 Linus Torvalds
 #
