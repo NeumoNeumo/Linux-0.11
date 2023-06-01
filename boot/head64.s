@@ -53,22 +53,15 @@ startup_64:
 #   mov $0x1234567890123456, %rax
 #   mov $0x6000, %ebx
 #   mov %rax, (%ebx)
-#
-# l:
-#   jmp l
+
 
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		# after changing gdt. CS was already
 	mov %ax,%es		# reloaded in 'setup_gdt'
 	mov %ax,%fs
 	mov %ax,%gs
-# lssl stack_start,%esp # TODO
+  lssl stack_start,%esp # TODO
 	call setup_idt
-	xorl %eax,%eax
-1:	incl %eax		# check that A20 really IS enabled
-	movl %eax,0x000000	# loop forever if it isn't
-	cmpl %eax,0x100000
-	je 1b
 
 loop:
   jmp loop
@@ -195,12 +188,13 @@ ignore_int:
 .align 4
 .word 0
 idt_descr:
-	.word 256*8-1		# idt contains 256 entries
-	.long idt
+	.word 256*16-1		# idt contains 256 entries
+	.quad idt
+
 .align 4
 .word 0
 gdt_descr:
-	.word 256*16-1		# so does gdt (not that that's any
+	.word 256*8-1		# so does gdt (not that that's any
 	.quad gdt	      	# magic number, but it works for me :^)
 
 # In 64-bit processor, an entry in idt is 16B long.
@@ -209,10 +203,10 @@ idt:	.fill 256*2,8,0		# idt is uninitialized
 
 .align 8
 gdt:
-	.quad	0, 0       # dummy
-  .long 0, 0x00209a00, 0, 0  # code readable in long mode
-  .long 0, 0x00209200, 0, 0  # data readable in long mode
-  .fill 504,8,0  # space for LDT's and TSS's etc (252*2=504)
+	.quad	0             # dummy
+  .long 0, 0x00209a00 # code readable in long mode
+  .long 0, 0x00209200 # data readable in long mode
+  .fill 504,8,0       # space for LDT's and TSS's etc (252*2=504)
 
 stack_start:    # TODO This should be removed after sched.c is compiled
   .long 0x00026fa0, 0x10

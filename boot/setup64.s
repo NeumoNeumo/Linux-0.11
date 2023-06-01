@@ -311,15 +311,18 @@ after_protect:
 
   call check_x64
 
-l:
-  jmp l
-
   lgdt gdt_80
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		
 	mov %ax,%es		
 	mov %ax,%fs
 	mov %ax,%gs
+  
+	xorl %eax,%eax
+1:	incl %eax		# check that A20 really IS enabled
+	movl %eax,0x100000	# loop forever if it isn't
+  cmpl %eax,0x000000
+	je 1b
 
 #.byte 0x0f, 0x20, 0xe0             # movl   %cr4, %eax
 #.byte 0x83, 0xc8, 0x20             # orl    $0x20, %eax
@@ -343,22 +346,17 @@ l:
   xor %eax, %eax
   mov %eax, %cr3    # load PML4
  
-  mov $0xC0000080, %eax
+  mov $0xC0000080, %ecx
   rdmsr
   or $0x100, %eax   # set LM bit
   wrmsr           # enable long mode
-
-  mov $0xC0000080, %eax
-  rdmsr
 
 	mov	%cr0, %eax
 	bts	$31, %eax	  # set PG
 
 	mov	%eax, %cr0	# enable paging
 
-
-  mov $0x5000, %eax
-  jmp *%eax
+  ljmp $0x8, $0x5000
 
 # movl $SETUPSEG, %eax
 # mov %ax, %gs
@@ -429,9 +427,9 @@ gdt:
 	.word	0x00CF		# granularity=4096, 386
 
 gdt64:
-	.quad	0, 0       # dummy
-  .long 0, 0x00209A00, 0, 0  # code readable in long mode
-  .long 0, 0x00209200, 0, 0  # data readable in long mode
+	.quad	0              # dummy
+  .long 0, 0x00209A00  # code readable in long mode
+  .long 0, 0x00209200  # data readable in long mode
 
 gdt_48:
 	.word	0x800			# gdt limit=2048, 256 GDT entries
@@ -439,7 +437,7 @@ gdt_48:
 	# 512+gdt is the real gdt after setup is moved to 0x9020 * 0x10
 
 gdt_80:
-	.word 256*16-1		
+	.word 256*8-1		
 	.word 512+gdt64, 0x9, 0, 0
 
 print_hex:

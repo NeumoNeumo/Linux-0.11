@@ -25,6 +25,10 @@ $ make start    // boot it on qemu
 $ make debug    // debug it via qemu with gdb or lldb
 ```
 
+```bash
+$ make sofar    // make the compilable part of the x86_64 system so far
+```
+
 lldb(recommended):
 
 ```lldb
@@ -32,6 +36,12 @@ $ lldb tools/system
 (lldb) gdb-remote 1234
 (lldb) b main
 (lldb) c
+```
+
+or
+```bash
+make lldb-as    // debug assembly
+make lldb-src   // debug with source
 ```
 
 gdb:
@@ -44,7 +54,8 @@ $ gdb tools/system
 ```
 
 Hints:
-You may use [bear](https://github.com/rizsotto/Bear) to generate compilation database for clang tooling.
+You may use [bear](https://github.com/rizsotto/Bear) to generate compilation
+database for clang tooling.
 
 # 2. Port to x86_64
 ## 2.1 Special Marks
@@ -73,12 +84,12 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 3. 
 
 ## 2.3 Roadmap
-[ ] Activate long mode
-[ ] Setup paging
-[ ] x86_64 Shell
-[ ] Higher Half Kernel
-[ ] Flash disk boot
-[ ] VGA 256-color
+- [x] Activate long mode @NeumoNeumo
+- [x] Setup paging @ NeumoNeumo
+- [ ] x86_64 Shell
+- [ ] Higher Half Kernel
+- [ ] Flash disk boot
+- [ ] VGA 256-color
 
 ### 2.3.1 Activate Long Mode
 Normal way:
@@ -88,9 +99,6 @@ Normal way:
 Tricky way:
 1. https://wiki.osdev.org/Entering_Long_Mode_Directly
 2. "Entering Long Mode directly" in https://wiki.osdev.org/X86-64
-
-### 2.3.2 Setup Paging
-
 
 
 # 3. Specification
@@ -120,27 +128,27 @@ Tricky way:
 1. bootsect.s (16-bit compiled)
 - Starts from F000:FFF0
 - Load the MBR to 0x7c00
-- Move to 0x90000 (Why?)
+- Move to 0x90000
 - Use BIOS interrupt 0x13 to read the left boot.
-- Load the systemat 0x10000. (Why?)
-- Far jump to 0x90200 (Why?)
+- Load the systemat 0x10000.
+- Far jump to 0x90200
 
 2. setup.s (16/32/64-bit compiled)
-- Load some system info (Why?)
+- Load some system info
 - Move the system from 0x10000-0x90000 to 0x0.
-- **Load gdt.**
+- Check the coprocessor(Moved to setup.s)*
 - Enable A20.
 - Program PIC.
 - Enable protection.
+- check A20
 - **Enter long mode(32-bit compiled)**
   - Set gdt
-  - Set paging
   - Set PAE, PG, PML4, 
+  - Set paging
   - Long jump to 0(0x5000)(64-bit)
 
 3. head.s (64-bit compiled): 
-- *Reconfigure idtr and gdtr.*(Failed here) 😭
-- *Check A20. Check the coprocessor(Moved to setup.s)*
+- *Reconfigure idtr and gdtr.*
 - Jump to main.c
 
 # 5. FAQ
