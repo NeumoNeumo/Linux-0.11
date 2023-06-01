@@ -54,8 +54,10 @@ $ gdb tools/system
 ```
 
 Hints:
-You may use [bear](https://github.com/rizsotto/Bear) to generate compilation
+1. You may use [bear](https://github.com/rizsotto/Bear) to generate compilation
 database for clang tooling.
+2. We use `__X64__` to indicate this code is to be compiled in x86_64 and
+   `__X86__` for x86.
 
 # 2. Port to x86_64
 ## 2.1 Special Marks
@@ -133,7 +135,7 @@ Tricky way:
 - Load the systemat 0x10000.
 - Far jump to 0x90200
 
-2. setup.s (16/32/64-bit compiled)
+2. setup.s (16/32 compiled)
 - Load some system info
 - Move the system from 0x10000-0x90000 to 0x0.
 - Check the coprocessor(Moved to setup.s)*

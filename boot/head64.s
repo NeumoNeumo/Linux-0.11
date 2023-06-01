@@ -12,7 +12,6 @@
  */
 .text
 .globl idt,gdt,pg_dir,tmp_floppy_area
-
 pg_dir:
 /*
  * I put the kernel page tables right after the page directory,
@@ -21,9 +20,9 @@ pg_dir:
  */
 PML4:
   .quad 0x1007  # PDPT_0
-  .rept 0x1ff
-    .quad 0
-  .endr
+  .fill 255,8,0
+  .quad 0x1007
+  .fill 255,8,0
 PDPT_0: # Not all processors that support IA-32e paging support 1 pages
   .quad 0x2007 # PD_0
   .rept 0x1ff
@@ -42,32 +41,22 @@ PD_0:
 .org 0x5000
 .globl startup_64
 startup_64:
-	movl $0x10,%eax
-	mov %ax,%ds
-	mov %ax,%es
-	mov %ax,%fs
-	mov %ax,%gs
-  lssl stack_start,%esp
-	call setup_gdt
-
-#   mov $0x1234567890123456, %rax
-#   mov $0x6000, %ebx
-#   mov %rax, (%ebx)
-
-
+	lgdt gdt_descr(%rip)
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		# after changing gdt. CS was already
 	mov %ax,%es		# reloaded in 'setup_gdt'
 	mov %ax,%fs
 	mov %ax,%gs
-  lssl stack_start,%esp # TODO
-	call setup_idt
+  mov %ax,%ss
+  mov stack_start(%rip),%rsp
 
-loop:
-  jmp loop
+  mov turn_HHK(%rip), %rax
+  pushq $0x08
+  pushq %rax
+  lretq
 
-# pushq $main # TODO main
-# ret
+turn_HHK:
+ .quad setup_idt
 
 /*
  *  setup_idt
@@ -82,13 +71,12 @@ loop:
  */
 
 setup_idt:
-	lea ignore_int,%edx
+	lea ignore_int(%rip),%rdx
 	movl $0x00080000,%eax /* selector = 0x0008 = cs */
 	movw %dx,%ax
 	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
-  xorl %ebx, %ebx
-
-	lea idt,%edi
+  movq $0x00000000FFFF8000, %rbx
+  lea idt(%rip), %rdi
 	mov $256,%ecx
 rp_sidt:
 	movl %eax,(%edi)
@@ -98,22 +86,13 @@ rp_sidt:
 	addl $16,%edi
 	dec %ecx
 	jne rp_sidt
-	lidt idt_descr
-	ret
+	lidt idt_descr(%rip)
+  
+l: jmp l
+  
+  # pushq $main # TODO main
+  # ret
 
-/*
- *  setup_gdt
- *
- *  This routines sets up a new gdt and loads it.
- *  Only two entries are currently built, the same
- *  ones that were built in init.s. The routine
- *  is VERY complicated at two whole lines, so this
- *  rather long comment is certainly needed :-).
- *  This routine will beoverwritten by the page tables.
- */
-setup_gdt:
-	lgdt gdt_descr
-	ret
 
 /*
  * tmp_floppy_area is used by the floppy-driver when DMA cannot
@@ -141,7 +120,7 @@ ignore_int:
 	mov %ax,%ds
 	mov %ax,%es
 	mov %ax,%fs
-	pushq $int_msg
+	pushq int_msg(%rip)
 # call printk      // TODO
 	popq %rax
   popw %ax
@@ -209,4 +188,4 @@ gdt:
   .fill 504,8,0       # space for LDT's and TSS's etc (252*2=504)
 
 stack_start:    # TODO This should be removed after sched.c is compiled
-  .long 0x00026fa0, 0x10
+  .quad 0x26fa0

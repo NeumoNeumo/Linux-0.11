@@ -324,21 +324,6 @@ after_protect:
   cmpl %eax,0x000000
 	je 1b
 
-#.byte 0x0f, 0x20, 0xe0             # movl   %cr4, %eax
-#.byte 0x83, 0xc8, 0x20             # orl    $0x20, %eax
-#.byte 0x0f, 0x22, 0xe0             # movl   %eax, %cr4
-#.byte 0xb8, 0x00, 0x00, 0x00, 0x00 # movl   $0x0, %eax
-#.byte 0x0f, 0x22, 0xd8             # movl   %eax, %cr3
-#.byte 0xb9, 0x80, 0x00, 0x00, 0xc0 # movl   $0xc0000080, %ecx
-#.byte 0x0f, 0x32                   # rdmsr
-#.byte 0x0d, 0x00, 0x01, 0x00, 0x00 # orl    $0x100, %eax
-#.byte 0x0f, 0x30                   # wrmsr
-#.byte 0x0f, 0x20, 0xc0             # movl   %cr0, %eax
-#.byte 0x0d, 0x00, 0x00, 0x00, 0x80 # orl    $0x80000000, %eax
-#.byte 0x0f, 0x22, 0xc0             # movl   %eax, %cr0
-#.byte 0xb8, 0x00, 0x50, 0x00, 0x00 # mov    $0x5000, %eax
-#.byte 0xff, 0xe0                   # jmp    *%eax
-
   mov %cr4, %eax  
   bts $5, %eax    
   mov %eax, %cr4  # enable PAE
@@ -357,14 +342,6 @@ after_protect:
 	mov	%eax, %cr0	# enable paging
 
   ljmp $0x8, $0x5000
-
-# movl $SETUPSEG, %eax
-# mov %ax, %gs
-
-# ljmpl $sel_cs0, $0x5000
-# 65ff 2c25 1020 3040 # jmp FWORD PTR gs:0x40302010
-# .word 0xff65, 0x252c
-# .long far_sel
 
 /*
  * We depend on ET to be correct. This checks for 287/387.
