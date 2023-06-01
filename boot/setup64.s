@@ -222,8 +222,6 @@ do_move:
 end_move:
 	mov	$SETUPSEG, %ax	# right, forgot this at first. didn't work :-)
 	mov	%ax, %ds
-	# lidt	idt_48		# load idt with 0,0
-	lgdt	gdt_48		# load gdt with whatever appropriate
 
 # that was painless, now we enable A20
 
@@ -279,26 +277,13 @@ end_move:
 # "interesting" anyway. This is how REAL programmers do it.
 
 
-/*
- * NOTE! 486 should set bit 16, to check for write-protect in supervisor
- * mode. Then it would be unnecessary with the "verify_area()"-calls.
- * 486 users probably want to set the NE (#5) bit also, so as to use
- * int 16 for math errors.
- */
-	movl %cr0,%eax		# check math chip
-	andl $0x80000011,%eax	# Save PG,PE,ET
-/* "orl $0x10020,%eax" here for 486 might be good */
-	orl $2,%eax		# set MP
-	movl %eax,%cr0
-	call check_x87
-
 # Well, now's the time to actually move into protected mode. To make
 # things as simple as possible, we do no register set-up or anything,
 # we let the gnu-compiled 32-bit programs do that. We just jump to
 # absolute address 0x00000, in 32-bit protected mode.
 # We immediately enter the long mode as soon as the 32-bit protection enables.
-	#mov	$0x0001, %ax	# protected mode (PE) bit
-	#lmsw	%ax		# This is it!
+	#lidt	idt_48		# load idt with 0,0
+	lgdt	gdt_48		# load gdt with whatever appropriate
 	mov	%cr0, %eax	# get machine status(cr0|MSW)	
 	bts	$0, %eax	# turn on the PE-bit (Protection Enable)
 	mov	%eax, %cr0	# protection enabled
@@ -307,51 +292,73 @@ end_move:
   #.byte 0xea, 0x00, 0x04, 0x09, 0x00, 0x08, 0x00
   ljmpl $0x0008, $0x90400
 
-#.code32
+.code32
 .org 0x200
 after_protect:
-.byte 0x0f, 0x20, 0xe0             # movl   %cr4, %eax
-.byte 0x83, 0xc8, 0x20             # orl    $0x20, %eax
-.byte 0x0f, 0x22, 0xe0             # movl   %eax, %cr4
-.byte 0xb8, 0x00, 0x00, 0x00, 0x00 # movl   $0x0, %eax
-.byte 0x0f, 0x22, 0xd8             # movl   %eax, %cr3
-.byte 0xb9, 0x80, 0x00, 0x00, 0xc0 # movl   $0xc0000080, %ecx
-.byte 0x0f, 0x32                   # rdmsr
-.byte 0x0d, 0x00, 0x01, 0x00, 0x00 # orl    $0x100, %eax
-.byte 0x0f, 0x30                   # wrmsr
-.byte 0x0f, 0x20, 0xc0             # movl   %cr0, %eax
-.byte 0x0d, 0x00, 0x00, 0x00, 0x80 # orl    $0x80000000, %eax
-.byte 0x0f, 0x22, 0xc0             # movl   %eax, %cr0
-.byte 0xb8, 0x00, 0x50, 0x00, 0x00 # mov    $0x5000, %eax
-.byte 0xff, 0xe0                   # jmp    *%eax
+/*
+ * NOTE! 486 should set bit 16, to check for write-protect in supervisor
+ * mode. Then it would be unnecessary with the "verify_area()"-calls.
+ * 486 users probably want to set the NE (#5) bit also, so as to use
+ * int 16 for math errors.
+ */
+
+	movl %cr0,%eax		# check math chip
+	andl $0x80000011,%eax	# Save PG,PE,ET
+/* "orl $0x10020,%eax" here for 486 might be good */
+	orl $2,%eax		# set MP
+	movl %eax,%cr0
+	call check_x87
+
+  call check_x64
+
+l:
+  jmp l
+
+  lgdt gdt_80
+	movl $0x10,%eax		# reload all the segment registers
+	mov %ax,%ds		
+	mov %ax,%es		
+	mov %ax,%fs
+	mov %ax,%gs
+
+#.byte 0x0f, 0x20, 0xe0             # movl   %cr4, %eax
+#.byte 0x83, 0xc8, 0x20             # orl    $0x20, %eax
+#.byte 0x0f, 0x22, 0xe0             # movl   %eax, %cr4
+#.byte 0xb8, 0x00, 0x00, 0x00, 0x00 # movl   $0x0, %eax
+#.byte 0x0f, 0x22, 0xd8             # movl   %eax, %cr3
+#.byte 0xb9, 0x80, 0x00, 0x00, 0xc0 # movl   $0xc0000080, %ecx
+#.byte 0x0f, 0x32                   # rdmsr
+#.byte 0x0d, 0x00, 0x01, 0x00, 0x00 # orl    $0x100, %eax
+#.byte 0x0f, 0x30                   # wrmsr
+#.byte 0x0f, 0x20, 0xc0             # movl   %cr0, %eax
+#.byte 0x0d, 0x00, 0x00, 0x00, 0x80 # orl    $0x80000000, %eax
+#.byte 0x0f, 0x22, 0xc0             # movl   %eax, %cr0
+#.byte 0xb8, 0x00, 0x50, 0x00, 0x00 # mov    $0x5000, %eax
+#.byte 0xff, 0xe0                   # jmp    *%eax
+
+  mov %cr4, %eax  
+  bts $5, %eax    
+  mov %eax, %cr4  # enable PAE
+ 
+  xor %eax, %eax
+  mov %eax, %cr3    # load PML4
+ 
+  mov $0xC0000080, %eax
+  rdmsr
+  or $0x100, %eax   # set LM bit
+  wrmsr           # enable long mode
+
+  mov $0xC0000080, %eax
+  rdmsr
+
+	mov	%cr0, %eax
+	bts	$31, %eax	  # set PG
+
+	mov	%eax, %cr0	# enable paging
 
 
-#  mov %cr4, %eax  
-#  bts $5, %eax    
-#  mov %eax, %cr4  # enable PAE
-# 
-#  xor %eax, %eax
-#  mov %eax, %cr3    # load PML4
-# 
-#  mov $0xC0000080, %eax
-#  rdmsr
-#  or $0x100, %eax   # set LM bit
-#  wrmsr           # enable long mode
-#
-#  mov $0xC0000080, %eax
-#  rdmsr
-#
-#	mov	%cr0, %eax
-#	bts	$31, %eax	  # set PG
-#
-#	mov	%eax, %cr0	# enable paging
-#
-#
-#  mov $0x5000, %eax
-#  jmp *%eax
-
-# movl $0x5000, %eax
-# jmp *%eax
+  mov $0x5000, %eax
+  jmp *%eax
 
 # movl $SETUPSEG, %eax
 # mov %ax, %gs
@@ -361,7 +368,6 @@ after_protect:
 # .word 0xff65, 0x252c
 # .long far_sel
 
-.code16
 /*
  * We depend on ET to be correct. This checks for 287/387.
  */
@@ -377,6 +383,25 @@ check_x87:
 .align 2
 1:	.byte 0xDB,0xE4		/* fsetpm for 287, ignored by 387 */
 	ret
+
+
+check_x64:
+  mov $0x80000000, %eax
+  cpuid
+  cmp $0x80000001, %eax
+  setnb %al
+  jb support_long_mode_done
+  mov $0x80000001, %eax
+  cpuid
+  bt $29, %edx
+  setc %al
+support_long_mode_done:
+  movzx %al, %eax
+  ret
+no_support:
+  jmp no_support
+
+.code16
 				
 # This routine checks that the keyboard command queue is empty
 # No timeout is used - if this hangs there is something wrong with
@@ -390,28 +415,32 @@ empty_8042:
 	ret
 */
 
-.align 64
-#gdt64:
-#	.quad	0       # dummy
-#  .long 0, 0x00209a00 # code r/w in long mode
-#  .long 0, 0x00209200 # data r/w in long mode
 gdt:
 	.word	0,0,0,0		# dummy
 
-	.word	0x07FF		# 8Mb - limit=2047 (2048*4096=8Mb)
+	.word	0xFFFF		# limit = 32GB
 	.word	0x0000		# base address=0
 	.word	0x9A00		# code read/exec
-	.word	0x00C0		# granularity=4096, 386
+	.word	0x00CF		# granularity=4096, 386
 
-	.word	0x07FF		# 8Mb - limit=2047 (2048*4096=8Mb)
+	.word	0xFFFF		# limit = 32GB
 	.word	0x0000		# base address=0
 	.word	0x9200		# data read/write
-	.word	0x00C0		# granularity=4096, 386
+	.word	0x00CF		# granularity=4096, 386
+
+gdt64:
+	.quad	0, 0       # dummy
+  .long 0, 0x00209A00, 0, 0  # code readable in long mode
+  .long 0, 0x00209200, 0, 0  # data readable in long mode
 
 gdt_48:
 	.word	0x800			# gdt limit=2048, 256 GDT entries
 	.word 512+gdt, 0x9		# gdt base = 0X9xxxx, 
 	# 512+gdt is the real gdt after setup is moved to 0x9020 * 0x10
+
+gdt_80:
+	.word 256*16-1		
+	.word 512+gdt64, 0x9, 0, 0
 
 print_hex:
 	mov $4,%cx

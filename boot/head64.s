@@ -1,3 +1,4 @@
+.code64
 /*
  * Port to x86_64
  */
@@ -46,16 +47,16 @@ startup_64:
 	mov %ax,%es
 	mov %ax,%fs
 	mov %ax,%gs
-
-  mov $0x1234, %eax
-  mov $0x6000, %ebx
-  mov %eax, (%ebx)
-
-l:
-  jmp l
-
   lssl stack_start,%esp
 	call setup_gdt
+
+#   mov $0x1234567890123456, %rax
+#   mov $0x6000, %ebx
+#   mov %rax, (%ebx)
+#
+# l:
+#   jmp l
+
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		# after changing gdt. CS was already
 	mov %ax,%es		# reloaded in 'setup_gdt'
