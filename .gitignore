@@ -10,4 +10,5 @@ Thumbs.db
 boot/bootsect
 boot/setup
 .cache
+.lldbinit
 
