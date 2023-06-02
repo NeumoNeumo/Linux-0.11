@@ -89,7 +89,7 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 - [x] Activate long mode @NeumoNeumo
 - [x] Setup paging @ NeumoNeumo
 - [ ] x86_64 Shell
-- [ ] Higher Half Kernel
+- [x] Higher Half Kernel @NeumoNeumo
 - [ ] Flash disk boot
 - [ ] VGA 256-color
 

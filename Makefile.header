@@ -1,5 +1,5 @@
 # Specify the target platform (x86 or x86_64)
-TARGET := x86
+TARGET := x86_64
 UNAME := $(shell uname)
 
 ifeq ($(TARGET), x86_64)
@@ -8,9 +8,9 @@ ifeq ($(TARGET), x86_64)
 	LD  = ld
 	LDFLAGS = -m elf_x86_64
 	cc  = gcc
-	CFLAGS  = -g -m64 -fno-builtin -fno-stack-protector -fomit-frame-pointer -fstrength-reduce #-Wall
+	CFLAGS  = -g -m64 -fno-builtin -fno-stack-protector -fomit-frame-pointer -fstrength-reduce -D__X64__ #-Wall
 
-	CPP	= cpp -nostdinc
+	CPP	= cpp -nostdinc -D__X64__
 	AR	= ar
 	STRIP = strip
 	OBJCOPY = objcopy
@@ -24,9 +24,9 @@ else
 		#LDFLAGS = -m elf_i386 -x 
 		LDFLAGS = -m elf_i386
 		CC	= gcc
-		CFLAGS  = -g -m32 -fno-builtin -fno-stack-protector -fomit-frame-pointer -fstrength-reduce #-Wall
+		CFLAGS  = -g -m32 -fno-builtin -fno-stack-protector -fomit-frame-pointer -fstrength-reduce -D__X86__ #-Wall
 
-		CPP	= cpp -nostdinc
+		CPP	= cpp -nostdinc -D__X86__
 		AR	= ar
 		STRIP = strip
 		OBJCOPY = objcopy

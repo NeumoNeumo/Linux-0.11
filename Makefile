@@ -19,13 +19,12 @@ RAMDISK =  #-DRAMDISK=512
 # This is a basic Makefile for setting the general configuration
 include Makefile.header
 
-# TODO64
 ifeq ($(TARGET), x86)
 	LDFLAGS += -Ttext 0 -e startup_32
 	CFLAGS  += $(RAMDISK) -Iinclude
-	CPP     += -Iinclude
+	CPP     += -Iinclude 
 else
-	LDFLAGS += -Ttext 0 -e startup_64
+	LDFLAGS += -T system64.ld -e startup_64
 	CFLAGS  += $(RAMDISK) -Iinclude
 	CPP     += -Iinclude
 endif
@@ -173,10 +172,12 @@ bochs-clean:
 	@make clean -C tools/bochs/bochs-2.3.7
 
 lldb-as:
+	@echo "gdb 1234" > .lldbinit
 	@lldb --local-lldbinit
 
 lldb-src:
-	@lldb --local-lldbinit tools/system
+	@echo "target create ./tools/system\ngdb 1234" > .lldbinit
+	@lldb --local-lldbinit
 
 calltree:
 ifeq ($(CALLTREE),)
