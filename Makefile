@@ -13,8 +13,7 @@ BOCHS=bochs
 #
 # if you want the ram-disk device, define this to be the
 # size in blocks.
-#
-RAMDISK =  #-DRAMDISK=512
+# RAMDISK =  #-DRAMDISK=512
 
 # This is a basic Makefile for setting the general configuration
 include Makefile.header
@@ -48,7 +47,7 @@ LIBS     = lib/lib.a
 .c.o:
 	@$(CC) $(CFLAGS) -c -o $*.o $<
 
-.PHONY: all clean info distclean backup start debug lldb-as lldb-src help sofar sofard
+.PHONY: all clean info distclean backup start debug lldb-as lldb-src help sofar sofard sofar_image
 
 all: Image	
 
@@ -195,9 +194,16 @@ callgraph:
 
 sofar:
 	@make clean
+	@make sofar_image
+
+sofard:
+	@make sofar
+	@make debug
+
+sofar_image: init/main.o
 	@make -C boot
 	@make head.o -C boot/
-	@$(LD) $(LDFLAGS) -o tools/system boot/head.o
+	@$(LD) $(LDFLAGS) -o tools/system boot/head.o init/main.o
 	@nm tools/system | grep -v '\(compiled\)\|\(\.o$$\)\|\( [aU] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)'| sort > System.map 
 	@cp -f tools/system system.tmp
 	@$(STRIP) system.tmp
@@ -206,10 +212,6 @@ sofar:
 	@rm system.tmp
 	@rm -f tools/kernel
 	@sync
-
-sofard:
-	@make sofar
-	@make debug
 
 help:
 	@echo "<<<<This is the basic help info of linux-0.11>>>"

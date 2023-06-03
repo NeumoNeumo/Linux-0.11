@@ -88,10 +88,13 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 ## 2.3 Roadmap
 - [x] Activate long mode @NeumoNeumo
 - [x] Setup paging @ NeumoNeumo
-- [ ] x86_64 Shell
 - [x] Higher Half Kernel @NeumoNeumo
 - [ ] Flash disk boot
-- [ ] VGA 256-color
+- [ ] tty
+- [ ] memory
+- [ ] schedule
+- [ ] x86_64 Shell
+- [ ] VGA graph mode
 
 ### 2.3.1 Activate Long Mode
 Normal way:
@@ -127,33 +130,36 @@ Tricky way:
 
 ## Boot(x64)
 
+The x64 boot process can be summarized as follows:
 1. bootsect.s (16-bit compiled)
 - Starts from F000:FFF0
 - Load the MBR to 0x7c00
 - Move to 0x90000
-- Use BIOS interrupt 0x13 to read the left boot.
-- Load the systemat 0x10000.
+- Use BIOS interrupt 0x13 to read the left of boot.
+- Load the system at 0x10000.
 - Far jump to 0x90200
 
 2. setup.s (16/32 compiled)
-- Load some system info
+- Load some system info(changed) // TODO64
 - Move the system from 0x10000-0x90000 to 0x0.
-- Check the coprocessor(Moved to setup.s)*
+- Check the coprocessor
 - Enable A20.
 - Program PIC.
 - Enable protection.
 - check A20
-- **Enter long mode(32-bit compiled)**
+- Enter long mode(32-bit compiled)
   - Set gdt
-  - Set PAE, PG, PML4, 
+  - Set PAE, PG, PML4
   - Set paging
-  - Long jump to 0(0x5000)(64-bit)
+  - Long jump to 0(0x5000)
 
 3. head.s (64-bit compiled): 
-- *Reconfigure idtr and gdtr.*
+- Reconfigure idtr and gdtr
+- setup higher half kernel
+- Setup TSS for kernel stack
 - Jump to main.c
 
-# 5. FAQ
+# FAQ
 1. Why do we need to setup gdt/paging in setup64.s since we will reset it in
    head64.s?
 
@@ -162,6 +168,7 @@ We want to use symbols in head64.s. So head64.s must be compile with `as
 the compiler will assume that we are already in the long mode. So we need to
 enter long mode before executing head64.s. One must setup a GDT in preparation
 for long mode. Therefore, a GDT is required in setup64.s. The same applies to
+LDT. But we can neglect setting up LDT in head64.s because of `cli`.
 
 2. Why lldb disassemble incorrectly in real mode?
 
@@ -169,3 +176,22 @@ a. Wrong address: https://github.com/llvm/llvm-project/issues/62835
 
 b. Wrong mode: lldb disassemble in protected mode by default which is different
 when decoding some commands compared to real mode.
+
+3. Why do we need TSS?
+
+In long mode, when switched to a higher privilege level in an interruption(e.g.
+CPL=3, DPL=0), the system will change its stack space to what DPL specifies. If
+the interruption occurs when CPL=0, everything is fine. But when it turns from
+0->3, TSS is needed to tell CPU where to find the kernel stack with respect to
+the higher privileged level. Moreover, TSS in long mode no longer stores the
+value of registers, so we have to manage task switching in OS instead of by
+hardware task switching technique.
+
+4. Why do we move `system` first to 0x10000?
+
+0-0xFFFF are reserved for the early stage of boot, so we had better not use
+these memory until we do not need BIOS. // TODO64
+
+5. Why do we move `bootsect` and `setup` to 0x90000?
+
+Spare 0x10000-0x90000 for `system`.

@@ -56,7 +56,7 @@ startup_64:
   lretq
 
 turn_HHK:
- .quad setup_idt
+ .quad setup_idt # 0xFFFF8000XXXXXXXX after ld
 
 /*
  *  setup_idt
@@ -87,12 +87,36 @@ rp_sidt:
 	dec %ecx
 	jne rp_sidt
 	lidt idt_descr(%rip)
-  
-l: jmp l
-  
-  # pushq $main # TODO main
-  # ret
 
+setup_tss:
+  leaq tss_table(%rip), %rdx
+  xorq %rax, %rax
+  xorq %rcx, %rcx
+  movq $0x89, %rax # present, 64bit TSS
+  shlq $40, %rax
+  movl %edx, %ecx 
+  shrl $24, %ecx
+  shlq $56, %rcx
+  addq %rcx, %rax
+  xorq %rcx, %rcx
+  movl %edx, %ecx
+  andl $0xffffff, %ecx
+  shlq $16, %rcx
+  addq %rcx, %rax
+  addq $0x67, %rax # limit
+  leaq gdt(%rip), %rdi
+  movq %rax, 24(%rdi) # gdt_idx = 3
+  shrq $32, %rdx
+  movq %rdx, 32(%rdi)
+# load tss
+  mov	$0x18, %ax # 11000b, gdt_idx = 3
+  ltr	%ax
+
+# long return to main
+  lea main(%rip), %rax
+	pushq	$0x08
+  pushq %rax
+  lretq
 
 /*
  * tmp_floppy_area is used by the floppy-driver when DMA cannot
@@ -107,31 +131,65 @@ int_msg:
 	.asciz "Unknown interrupt\n\r"
 .align 4
 ignore_int:
-	pushq %rax
-	pushq %rcx
-	pushq %rdx
+	pushq	%rax
+	pushq	%rbx
+	pushq	%rcx
+	pushq	%rdx
+	pushq	%rbp
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%r8
+	pushq	%r9
+	pushq	%r10
+	pushq	%r11
+	pushq	%r12
+	pushq	%r13
+	pushq	%r14
+	pushq	%r15
   movw %ds, %ax
   pushw %ax
   movw %es, %ax
   pushw %ax
   movw %fs, %ax
   pushw %ax
+  movw %gs, %ax
+  pushw %ax
+
 	mov $0x10,%ax
 	mov %ax,%ds
 	mov %ax,%es
 	mov %ax,%fs
 	pushq int_msg(%rip)
 # call printk      // TODO
-	popq %rax
+  add $0x8, %rsp
+
+l:
+  jmp l
+
+  popw %ax
+  movw %ax, %gs
   popw %ax
   movw %ax, %fs
   popw %ax
   movw %ax, %es
   popw %ax
   movw %ax, %ds
-	popq %rdx
-	popq %rcx
-	popq %rax
+  popq %r15
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %r11
+  popq %r10
+  popq %r9
+  popq %r8
+  
+	popq	%rsi
+	popq	%rdi
+	popq	%rbp
+	popq	%rdx
+	popq	%rcx
+	popq	%rbx
+	popq	%rax
 	iretq
 
 /*
@@ -177,15 +235,16 @@ gdt_descr:
 	.quad gdt	      	# magic number, but it works for me :^)
 
 # In 64-bit processor, an entry in idt is 16B long.
-.align 16
 idt:	.fill 256*2,8,0		# idt is uninitialized
 
-.align 8
 gdt:
 	.quad	0             # dummy
   .long 0, 0x00209a00 # code readable in long mode
   .long 0, 0x00209200 # data readable in long mode
   .fill 504,8,0       # space for LDT's and TSS's etc (252*2=504)
+
+tss_table:
+	.fill 26,4,0 # 26 * 4 = 104 (64bit TSS)
 
 stack_start:    # TODO This should be removed after sched.c is compiled
   .quad 0x26fa0
