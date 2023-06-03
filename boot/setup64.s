@@ -232,9 +232,9 @@ end_move:
 	#mov	$0xDF, %al	# A20 on
 	#out	%al, $0x60
 	#call	empty_8042
-	inb     $0x92, %al	# open A20 line(Fast Gate A20).
-	orb     $0b00000010, %al
-	outb    %al, $0x92
+	inb		 $0x92, %al	# open A20 line(Fast Gate A20).
+	orb		 $0b00000010, %al
+	outb		%al, $0x92
 
 # well, that went ok, I hope. Now we have to reprogram the interrupts :-(
 # we put them right after the intel-reserved hardware interrupts, at
@@ -255,11 +255,11 @@ end_move:
 	.word	0x00eb,0x00eb
 	mov	$0x28, %al		# start of hardware int's 2 (0x28)
 	out	%al, $0xA1		# from 0x28-0x2F
-	.word	0x00eb,0x00eb		#               IR 7654 3210
+	.word	0x00eb,0x00eb		#							 IR 7654 3210
 	mov	$0x04, %al		# 8259-1 is master(0000 0100) --\
 	out	%al, $0x21		#				|
 	.word	0x00eb,0x00eb		#			 INT	/
-	mov	$0x02, %al		# 8259-2 is slave(       010 --> 2)
+	mov	$0x02, %al		# 8259-2 is slave(			 010 --> 2)
 	out	%al, $0xA1
 	.word	0x00eb,0x00eb
 	mov	$0x01, %al		# 8086 mode for both
@@ -288,9 +288,9 @@ end_move:
 	bts	$0, %eax	# turn on the PE-bit (Protection Enable)
 	mov	%eax, %cr0	# protection enabled
 
-  # segment-descriptor        (INDEX:TI:RPL)
-  #.byte 0xea, 0x00, 0x04, 0x09, 0x00, 0x08, 0x00
-  ljmpl $0x0008, $0x90400
+	# segment-descriptor				(INDEX:TI:RPL)
+	#.byte 0xea, 0x00, 0x04, 0x09, 0x00, 0x08, 0x00
+	ljmpl $0x0008, $0x90400
 
 .code32
 .org 0x200
@@ -309,39 +309,39 @@ after_protect:
 	movl %eax,%cr0
 	call check_x87
 
-  call check_x64
+	call check_x64
 
-  lgdt gdt_80
+	lgdt gdt_80
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		
 	mov %ax,%es		
 	mov %ax,%fs
 	mov %ax,%gs
-  
+	
 	xorl %eax,%eax
 1:	incl %eax		# check that A20 really IS enabled
 	movl %eax,0x100000	# loop forever if it isn't
-  cmpl %eax,0x000000
+	cmpl %eax,0x000000
 	je 1b
 
-  mov %cr4, %eax  
-  bts $5, %eax    
-  mov %eax, %cr4  # enable PAE
+	mov %cr4, %eax	
+	bts $5, %eax		
+	mov %eax, %cr4	# enable PAE
  
-  xor %eax, %eax
-  mov %eax, %cr3    # load PML4
+	xor %eax, %eax
+	mov %eax, %cr3		# load PML4
  
-  mov $0xC0000080, %ecx
-  rdmsr
-  or $0x100, %eax   # set LM bit
-  wrmsr           # enable long mode
+	mov $0xC0000080, %ecx
+	rdmsr
+	or $0x100, %eax	 # set LM bit
+	wrmsr					 # enable long mode
 
 	mov	%cr0, %eax
-	bts	$31, %eax	  # set PG
+	bts	$31, %eax		# set PG
 
 	mov	%eax, %cr0	# enable paging
 
-  ljmp $0x8, $0x5000
+	ljmp $0x8, $0x5000
 
 /*
  * We depend on ET to be correct. This checks for 287/387.
@@ -361,20 +361,20 @@ check_x87:
 
 
 check_x64:
-  mov $0x80000000, %eax
-  cpuid
-  cmp $0x80000001, %eax
-  setnb %al
-  jb support_long_mode_done
-  mov $0x80000001, %eax
-  cpuid
-  bt $29, %edx
-  setc %al
+	mov $0x80000000, %eax
+	cpuid
+	cmp $0x80000001, %eax
+	setnb %al
+	jb support_long_mode_done
+	mov $0x80000001, %eax
+	cpuid
+	bt $29, %edx
+	setc %al
 support_long_mode_done:
-  movzx %al, %eax
-  ret
+	movzx %al, %eax
+	ret
 no_support:
-  jmp no_support
+	jmp no_support
 
 .code16
 				
@@ -404,9 +404,9 @@ gdt:
 	.word	0x00CF		# granularity=4096, 386
 
 gdt64:
-	.quad	0              # dummy
-  .long 0, 0x00209A00  # code readable in long mode
-  .long 0, 0x00209200  # data readable in long mode
+	.quad	0							# dummy
+	.long 0, 0x00209A00	# code readable in long mode
+	.long 0, 0x00209200	# data readable in long mode
 
 gdt_48:
 	.word	0x800			# gdt limit=2048, 256 GDT entries
@@ -461,7 +461,7 @@ head:
 sect:
 	.ascii "Secotrs:"
 far_sel:
-  .long 0x00085000
+	.long 0x00085000
 .text
 endtext:
 .data
