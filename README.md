@@ -136,7 +136,6 @@ The x64 boot process can be summarized as follows:
 - Load the MBR to 0x7c00
 - Move to 0x90000
 - Use BIOS interrupt 0x13 to read the left of boot.
-- Load the system at 0x10000.
 - Far jump to 0x90200
 
 2. setup.s (16/32 compiled)
@@ -147,6 +146,7 @@ The x64 boot process can be summarized as follows:
 - Program PIC.
 - Enable protection.
 - check A20
+- load system to 0x100000
 - Enter long mode(32-bit compiled)
   - Set gdt
   - Set PAE, PG, PML4
@@ -160,6 +160,7 @@ The x64 boot process can be summarized as follows:
 - Jump to main.c
 
 # FAQ
+
 1. Why do we need to setup gdt/paging in setup64.s since we will reset it in
    head64.s?
 
@@ -187,11 +188,10 @@ the higher privileged level. Moreover, TSS in long mode no longer stores the
 value of registers, so we have to manage task switching in OS instead of by
 hardware task switching technique.
 
-4. Why do we move `system` first to 0x10000?
+4. Why do we move `system` to 0x100000? 
 
-0-0xFFFF are reserved for the early stage of boot, so we had better not use
-these memory until we do not need BIOS. // TODO64
-
-5. Why do we move `bootsect` and `setup` to 0x90000?
-
-Spare 0x10000-0x90000 for `system`.
+First, memory address from 0 to 0xFFFFF are not all DRAM, so we had better not use
+these memory. For example, some space is mapped to ROM which we cannot write to.
+Second, if we load our system like what we did in the x86 version, the system
+has a rather limited size. But if we load the system in the protected mode, our
+system can exceeds 1MB.

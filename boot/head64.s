@@ -19,12 +19,12 @@ pg_dir:
  * more than 128MB will have to expand this.
  */
 PML4:
-	.quad 0x1007	# PDPT_0
+	.quad 0x101007	# PDPT_0
 	.fill 255,8,0
-	.quad 0x1007
+	.quad 0x101007
 	.fill 255,8,0
 PDPT_0: # Not all processors that support IA-32e paging support 1 pages
-	.quad 0x2007 # PD_0
+	.quad 0x102007 # PD_0
 	.rept 0x1ff
 		.quad 0
 	.endr
@@ -182,7 +182,6 @@ l:
 	popq %r10
 	popq %r9
 	popq %r8
-	
 	popq	%rsi
 	popq	%rdi
 	popq	%rbp
@@ -247,4 +246,4 @@ tss_table:
 	.fill 26,4,0 # 26 * 4 = 104 (64bit TSS)
 
 stack_start:		# TODO This should be removed after sched.c is compiled
-	.quad 0x26fa0
+	.quad 0x200000

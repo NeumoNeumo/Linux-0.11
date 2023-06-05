@@ -5,9 +5,15 @@ LDFLAGS	+= -Ttext 0
 all: bootsect setup
 
 bootsect: bootsect.s
-	@$(AS) -o bootsect.o bootsect.s
-	@$(LD) $(LDFLAGS) -o bootsect bootsect.o
-	@$(OBJCOPY) -R .pdr -R .comment -R.note -S -O binary bootsect
+	@if [ "${TARGET}" = "x86" ]; then\
+		$(AS) -o bootsect.o bootsect.s
+		$(LD) $(LDFLAGS) -o bootsect bootsect.o
+		$(OBJCOPY) -R .pdr -R .comment -R.note -S -O binary bootsect
+	else\
+		as --32 -o bootsect64.o bootsect64.s;\
+		ld -m elf_i386 -Ttext 0 -o bootsect64 bootsect64.o;\
+	fi
+	@$(OBJCOPY) -R .pdr -R .comment -R.note -S -O binary setup
 
 
 # NOTE for target x86_64: we are still in 32-bit protected mode in setup64.s.

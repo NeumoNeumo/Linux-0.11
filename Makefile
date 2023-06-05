@@ -147,14 +147,14 @@ start:
 ifeq ($(TARGET), x86)
 	@qemu-system-i386 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
 else
-	@qemu-system-x86_64 -m 128M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
+	@qemu-system-x86_64 -m 4G -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk
 endif
 
 debug:
 ifeq ($(TARGET), x86)
 	@qemu-system-i386 -m 16M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
 else
-	@qemu-system-x86_64 -m 128M -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
+	@qemu-system-x86_64 -m 4G -boot a -drive format=raw,file=Image,if=floppy -drive format=raw,file=hdc-0.11.img,index=0,media=disk -s -S
 endif
 
 bochs-debug:

@@ -13,6 +13,7 @@
 # system to read them from there before the area is overwritten
 # for buffer-blocks.
 #
+.equ SYSSIZE, 0x100000
 
 # NOTE! These had better be the same as in bootsect.s!
 
@@ -200,6 +201,7 @@ is_disk1:
 
 	cli			# no interrupts allowed ! 
 
+/*
 # first we move the system to its rightful place
 
 	mov	$0x0000, %ax
@@ -216,6 +218,7 @@ do_move:
 	rep
 	movsw
 	jmp	do_move
+*/
 
 # then we load the segment descriptors
 
@@ -236,7 +239,42 @@ end_move:
 	orb		 $0b00000010, %al
 	outb		%al, $0x92
 
-# well, that went ok, I hope. Now we have to reprogram the interrupts :-(
+	xorl %eax,%eax
+1:	incl %eax		# check that A20 really IS enabled
+	movl %eax,0x100000	# loop forever if it isn't.
+	cmpl %eax,0x0
+	je 1b
+
+# well, that went ok, I hope. 
+
+
+# load the system at 0x100000
+	mov	$0x00, %dl
+	mov	$0x0800, %ax		# AH=8 is get drive parameters
+	int	$0x13
+	mov	$0x00, %ch
+	mov	%cx, %cs:sectors+0	# %cs means sectors is in %cs
+
+	lgdt	gdt_48
+	mov	%cr0, %eax
+	bts	$0, %eax
+	mov	%eax, %cr0	
+
+	mov $0x10, %ax
+	mov %ax, %es
+
+	mov %cr0, %eax
+	btr $0, %eax
+	mov %eax, %cr0
+
+	xor	ah,	ah
+	xor	dl,	dl
+	int	13h     #reset
+
+	call read_it
+	call kill_motor
+
+# Now we have to reprogram the interrupts :-(
 # we put them right after the intel-reserved hardware interrupts, at
 # int 0x20-0x2F. There they won't mess up anything. Sadly IBM really
 # messed this up with the original PC, and they haven't been able to
@@ -318,12 +356,6 @@ after_protect:
 	mov %ax,%fs
 	mov %ax,%gs
 	
-	xorl %eax,%eax
-1:	incl %eax		# check that A20 really IS enabled
-	movl %eax,0x100000	# loop forever if it isn't
-	cmpl %eax,0x000000
-	je 1b
-
 	mov %cr4, %eax	
 	bts $5, %eax		
 	mov %eax, %cr4	# enable PAE
@@ -341,7 +373,7 @@ after_protect:
 
 	mov	%eax, %cr0	# enable paging
 
-	ljmp $0x8, $0x5000
+	ljmp $0x8, $0x105000
 
 /*
  * We depend on ET to be correct. This checks for 287/387.
@@ -377,6 +409,96 @@ no_support:
 	jmp no_support
 
 .code16
+
+# load the system to 0x100000 in unreal mode
+sread:	.word 1 + SYSLEN	# sectors read of current track
+head:	.word 0			# current head
+track:	.word 0			# current track
+
+read_it:
+	movl $100000, %ebx
+rp_read:
+	mov 	%es, %ax
+ 	cmp 	$ENDSEG, %ax		# have we loaded all yet?
+	jb	ok1_read
+	ret
+ok1_read:
+	#seg cs
+	mov	%cs:sectors+0, %ax
+	sub	$5, %ax
+	mov	%ax, %cx
+	shl	$9, %cx
+	add	%bx, %cx
+	jnc 	ok2_read
+	je 	ok2_read
+	xor 	%ax, %ax
+	sub 	%bx, %ax
+	shr 	$9, %ax
+ok2_read:
+	call 	read_track
+	mov 	%ax, %cx
+	add 	sread, %ax
+	#seg cs
+	cmp 	%cs:sectors+0, %ax
+	jne 	ok3_read
+	mov 	$1, %ax
+	sub 	head, %ax
+	jne 	ok4_read
+	incw    track 
+ok4_read:
+	mov	%ax, head
+	xor	%ax, %ax
+ok3_read:
+	mov	%ax, sread
+	shl	$9, %cx
+	add	%cx, %bx
+	jnc	rp_read
+	add	$0x10000, %bx
+	xor	%bx, %bx
+	jmp	rp_read
+
+read_track:
+	push	%ax
+	push	%bx
+	push	%cx
+	push	%dx
+	mov	track, %dx
+	mov	sread, %cx
+	inc	%cx
+	mov	%dl, %ch
+	mov	head, %dx
+	mov	%dl, %dh
+	mov	$0, %dl
+	and	$0x0100, %dx
+	mov	$2, %ah
+	int	$0x13
+	jc	bad_rt
+	pop	%dx
+	pop	%cx
+	pop	%bx
+	pop	%ax
+	ret
+bad_rt:	mov	$0, %ax
+	mov	$0, %dx
+	int	$0x13
+	pop	%dx
+	pop	%cx
+	pop	%bx
+	pop	%ax
+	jmp	read_track
+
+#/*
+# * This procedure turns off the floppy drive motor, so
+# * that we enter the kernel in a known state, and
+# * don't have to worry about it later.
+# */
+kill_motor:
+	push	%dx
+	mov	$0x3f2, %dx
+	mov	$0, %al
+	outsb
+	pop	%dx
+	ret
 				
 # This routine checks that the keyboard command queue is empty
 # No timeout is used - if this hangs there is something wrong with
@@ -442,6 +564,8 @@ print_nl:
 	int $0x10
 	ret
 
+sectors:
+	.word 0
 msg2:
 	.byte 13,10
 	.ascii "Now we are in setup ..."
