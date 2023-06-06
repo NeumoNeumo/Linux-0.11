@@ -19,7 +19,7 @@ def get_offset_around(debugger, addr):
     cnt = 0
     rst = 0
     for offset in range(-1, -90, -1):
-        for line in lldb_cmd(debugger, f"dis -s {addr + offset} -c 50").split("\n"):
+        for line in lldb_cmd(debugger, f"dis -Ai386 -c50 -s  {addr + offset}").split("\n"):
             if not line:
                 continue
             line_addr = get_first_hex(line)
@@ -34,15 +34,15 @@ def get_offset_around(debugger, addr):
 
 def disassemble_around_address(debugger, command, result, internal_dict):
     output = []
-    eip = get_hex(lldb_cmd(debugger, "reg r eip"))
+    rip = get_hex(lldb_cmd(debugger, "reg r rip"))
     cs = get_hex(lldb_cmd(debugger, "reg r cs"))
     cr0 = get_hex(lldb_cmd(debugger, "reg r cr0"))
     if cr0 & 1:
-        addr = eip
+        addr = rip
     else:
-        addr = cs * 16 + eip
+        addr = cs * 16 + rip
     offset = get_offset_around(debugger, addr)
-    dis_out = lldb_cmd(debugger, f"dis -s {addr + offset} -c 10 -b")
+    dis_out = lldb_cmd(debugger, f"dis -c 10 -b -Ai386 -s {addr + offset}")
     
     for line in dis_out.split("\n"):
         if not line:

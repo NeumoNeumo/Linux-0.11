@@ -146,7 +146,7 @@ The x64 boot process can be summarized as follows:
 - Program PIC.
 - Enable protection.
 - check A20
-- load system to 0x100000
+- load system to 0x100000 in unreal mode
 - Enter long mode(32-bit compiled)
   - Set gdt
   - Set PAE, PG, PML4
@@ -195,3 +195,9 @@ these memory. For example, some space is mapped to ROM which we cannot write to.
 Second, if we load our system like what we did in the x86 version, the system
 has a rather limited size. But if we load the system in the protected mode, our
 system can exceeds 1MB.
+
+5. Why we need unreal mode to load `system` to 0x100000?
+
+We need BIOS interrupt, which is designed for real mode, to load `system`.
+However, we cannot reach the memory beyond 1MB in real mode. So unreal mode is
+required.
