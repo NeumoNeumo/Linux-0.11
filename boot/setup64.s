@@ -13,12 +13,12 @@
 # system to read them from there before the area is overwritten
 # for buffer-blocks.
 #
-.equ SYSSIZE, 0x100000
 
 # NOTE! These had better be the same as in bootsect.s!
 
 	.equ INITSEG, 0x9000	# we move boot here - out of the way
-	.equ SYSSEG, 0x1000	# system loaded at 0x10000 (65536).
+	.equ SYSSTART, 0x100000	# system loaded at 0x100000
+	.equ SYSEND, 0x200000   # system ends at 0x200000
 	.equ SETUPSEG, 0x9020	# this is the current segment
 
 	.global _start, begtext, begdata, begbss, endtext, enddata, endbss
@@ -35,9 +35,9 @@ _start:
 	mov %cs,%ax
 	mov %ax,%ds
 	mov %ax,%es
-#
+
 ##print some message
-#
+
 	mov $0x03, %ah
 	xor %bh, %bh
 	int $0x10
@@ -176,9 +176,7 @@ _start:
 	mov %ds:0x8e, %ax
 	call print_hex
 	call print_nl
-#l:
-#	jmp l
-##
+
 # Check that there IS a hd1 :-)
 
 	mov	$0x01500, %ax
@@ -197,28 +195,7 @@ no_disk1:
 	stosb
 is_disk1:
 
-# now we want to move to protected mode ...
 
-	cli			# no interrupts allowed ! 
-
-/*
-# first we move the system to its rightful place
-
-	mov	$0x0000, %ax
-	cld			# 'direction'=0, movs moves forward
-do_move:
-	mov	%ax, %es	# destination segment
-	add	$0x1000, %ax
-	cmp	$0x9000, %ax
-	jz	end_move
-	mov	%ax, %ds	# source segment
-	sub	%di, %di
-	sub	%si, %si
-	mov 	$0x8000, %cx
-	rep
-	movsw
-	jmp	do_move
-*/
 
 # then we load the segment descriptors
 
@@ -239,40 +216,38 @@ end_move:
 	orb		 $0b00000010, %al
 	outb		%al, $0x92
 
-	xorl %eax,%eax
-1:	incl %eax		# check that A20 really IS enabled
-	movl %eax,0x100000	# loop forever if it isn't.
-	cmpl %eax,0x0
-	je 1b
-
-# well, that went ok, I hope. 
-
-
-# load the system at 0x100000
 	mov	$0x00, %dl
 	mov	$0x0800, %ax		# AH=8 is get drive parameters
 	int	$0x13
+	#seg cs
 	mov	$0x00, %ch
-	mov	%cx, %cs:sectors+0	# %cs means sectors is in %cs
+	mov	%cx, sectors	# %cs means sectors is in %cs
+	mov %dh, heads
 
+
+# load the system at 0x100000
+
+# enter unreal mode
 	lgdt	gdt_48
 	mov	%cr0, %eax
 	bts	$0, %eax
 	mov	%eax, %cr0	
 
 	mov $0x10, %ax
-	mov %ax, %es
+	mov %ax, %fs
 
 	mov %cr0, %eax
 	btr $0, %eax
 	mov %eax, %cr0
 
-	xor	ah,	ah
-	xor	dl,	dl
-	int	13h     #reset
+	xor	%ah, %ah
+	xor	%dl, %dl
+	int	$0x13     #reset
 
 	call read_it
 	call kill_motor
+
+	cli			# no interrupts allowed ! 
 
 # Now we have to reprogram the interrupts :-(
 # we put them right after the intel-reserved hardware interrupts, at
@@ -330,6 +305,7 @@ end_move:
 	#.byte 0xea, 0x00, 0x04, 0x09, 0x00, 0x08, 0x00
 	ljmpl $0x0008, $0x90400
 
+
 .code32
 .org 0x200
 after_protect:
@@ -360,7 +336,7 @@ after_protect:
 	bts $5, %eax		
 	mov %eax, %cr4	# enable PAE
  
-	xor %eax, %eax
+	mov $SYSSTART, %eax # pages at the beginning of `system`
 	mov %eax, %cr3		# load PML4
  
 	mov $0xC0000080, %ecx
@@ -410,81 +386,88 @@ no_support:
 
 .code16
 
-# load the system to 0x100000 in unreal mode
-sread:	.word 1 + SYSLEN	# sectors read of current track
-head:	.word 0			# current head
-track:	.word 0			# current track
-
 read_it:
-	movl $100000, %ebx
+	mov $0x1000, %ax
+	mov %ax, %es
+	movl $SYSSTART, cur_sys_end
+	xor %edi, %edi
 rp_read:
-	mov 	%es, %ax
- 	cmp 	$ENDSEG, %ax		# have we loaded all yet?
+	xor %bx, %bx
+ 	cmp 	$SYSEND, %edi		# have we loaded all yet?
 	jb	ok1_read
 	ret
 ok1_read:
 	#seg cs
+	xor %eax, %eax
 	mov	%cs:sectors+0, %ax
-	sub	$5, %ax
-	mov	%ax, %cx
-	shl	$9, %cx
-	add	%bx, %cx
-	jnc 	ok2_read
-	je 	ok2_read
-	xor 	%ax, %ax
-	sub 	%bx, %ax
-	shr 	$9, %ax
+	sub	sread, %ax
 ok2_read:
-	call 	read_track
-	mov 	%ax, %cx
-	add 	sread, %ax
-	#seg cs
-	cmp 	%cs:sectors+0, %ax
-	jne 	ok3_read
-	mov 	$1, %ax
-	sub 	head, %ax
+	call read_track
+	call move_1MB
+	mov $0, sread
+	mov cur_head, %ax
+	sub heads, %ax
 	jne 	ok4_read
-	incw    track 
+	mov $0, cur_head
+	incw cur_track 
+	jmp rp_read
 ok4_read:
-	mov	%ax, head
-	xor	%ax, %ax
-ok3_read:
-	mov	%ax, sread
-	shl	$9, %cx
-	add	%cx, %bx
-	jnc	rp_read
-	add	$0x10000, %bx
-	xor	%bx, %bx
+	inc cur_head
 	jmp	rp_read
 
+# al: nu_sect to be moved; from 0x10000 to 1MB
+move_1MB:
+	push	%eax
+	push	%ebx
+	push	%ecx
+	push	%edx
+	mov $0, %ah
+	xor %bx, %bx
+	shl $9, %eax
+	mov cur_sys_end, %edi
+rep_mov:
+	movw %es:(%bx), %cx
+	movw %cx, %fs:(%edi)
+	inc %bx
+	inc %edi
+	dec %eax
+	jne rep_mov
+	movl %edi, cur_sys_end
+	pop	%edx
+	pop	%ecx
+	pop	%ebx
+	pop	%eax
+	ret
+
+# al: nr_sect to be read; (es:bx): buffer addr
 read_track:
-	push	%ax
-	push	%bx
-	push	%cx
-	push	%dx
-	mov	track, %dx
+	push	%eax
+	push	%ebx
+	push	%ecx
+	push	%edx
+	mov	cur_track, %dx
 	mov	sread, %cx
 	inc	%cx
 	mov	%dl, %ch
-	mov	head, %dx
+	mov	cur_head, %dx
 	mov	%dl, %dh
 	mov	$0, %dl
 	and	$0x0100, %dx
 	mov	$2, %ah
 	int	$0x13
 	jc	bad_rt
-	pop	%dx
-	pop	%cx
-	pop	%bx
-	pop	%ax
+	pop	%edx
+	pop	%ecx
+	pop	%ebx
+	pop	%eax
 	ret
 bad_rt:	mov	$0, %ax
 	mov	$0, %dx
 	int	$0x13
-	pop	%dx
-	pop	%cx
-	pop	%bx
-	pop	%ax
+	pop	%edx
+	pop	%ecx
+	pop	%ebx
+	pop	%eax
 	jmp	read_track
 
 #/*
@@ -545,7 +528,7 @@ print_hex:
 
 print_digit:
 	rol $4,%dx	#循环以使低4位用上，高4位移至低4位
-	mov $0xe0f,%ax #ah ＝ 请求的功能值，al = 半个字节的掩码
+	mov $0xe0f,%ax #ah = 请求的功能值，al = 半个字节的掩码
 	and %dl,%al
 	add $0x30,%al
 	cmp $0x3a,%al
@@ -564,8 +547,13 @@ print_nl:
 	int $0x10
 	ret
 
-sectors:
-	.word 0
+sectors: .word 0
+heads: .word 0
+sread:	.word 5     	# sectors read of current track
+cur_head:	.word 0			# current head
+cur_track:	.word 0		# current track
+cur_sys_end: .long 0  # current system end
+
 msg2:
 	.byte 13,10
 	.ascii "Now we are in setup ..."

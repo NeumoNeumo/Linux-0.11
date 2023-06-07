@@ -161,7 +161,7 @@ The x64 boot process can be summarized as follows:
 
 # FAQ
 
-1. Why do we need to setup gdt/paging in setup64.s since we will reset it in
+1. Why do we need to setup gdt/ldt in setup64.s since we will reset it in
    head64.s?
 
 We want to use symbols in head64.s. So head64.s must be compile with `as
@@ -169,7 +169,8 @@ We want to use symbols in head64.s. So head64.s must be compile with `as
 the compiler will assume that we are already in the long mode. So we need to
 enter long mode before executing head64.s. One must setup a GDT in preparation
 for long mode. Therefore, a GDT is required in setup64.s. The same applies to
-LDT. But we can neglect setting up LDT in head64.s because of `cli`.
+LDT. But we can neglect setting up LDT in head64.s because of `cli`. So we did
+not setup LDT :).
 
 2. Why lldb disassemble incorrectly in real mode?
 
@@ -195,6 +196,40 @@ these memory. For example, some space is mapped to ROM which we cannot write to.
 Second, if we load our system like what we did in the x86 version, the system
 has a rather limited size. But if we load the system in the protected mode, our
 system can exceeds 1MB.
+
+```txt
++------------+------------+---------------+----------------------+------------------------------------------------+
+|    start   |     end    |      size     |      description     |                      type                      |
++------------+------------+---------------+----------------------+------------------------------------------------+
+|                                     Real mode address space (the first MiB)                                     |
++------------+------------+---------------+----------------------+-------------------+----------------------------+
+|            |            |               | Real Mode IVT        |                   |                            |
+| 0x00000000 | 0x000003FF | 1 KiB         | (Interrupt Vector    | unusable in real  |                            |
+|            |            |               | Table)               | mode              |                            |
++------------+------------+---------------+----------------------+                   |                            |
+| 0x00000400 | 0x000004FF | 256 bytes     | BDA (BIOS data area) |                   |                            |
++------------+------------+---------------+----------------------+-------------------+                            |
+| 0x00000500 | 0x00007BFF | almost 30 KiB | Conventional memory  |                   | 640 KiB RAM ("Low memory") |
++------------+------------+---------------+----------------------+                   |                            |
+| 0x00007C00 | 0x00007DFF | 512 bytes     | Your OS BootSector   | usable memory     |                            |
++------------+------------+---------------+----------------------+                   |                            |
+| 0x00007E00 | 0x0007FFFF | 480.5 KiB     | Conventional memory  |                   |                            |
++------------+------------+---------------+----------------------+-------------------+                            |
+| 0x00080000 | 0x0009FFFF | 128 KiB       | EBDA (Extended       | partially used by |                            |
+|            |            |               | BIOS Data Area)      | the EBDA          |                            |
++------------+------------+---------------+----------------------+-------------------+----------------------------+
+| 0x000A0000 | 0x000BFFFF | 128 KiB       | Video display memory | hardware mapped   |                            |
++------------+------------+---------------+----------------------+-------------------+                            |
+| 0x000C0000 | 0x000C7FFF | 32 KiB        | Video BIOS           |                   |                            |
+|            |            | (typically)   |                      |                   | 384 KiB System / Reserved  |
++------------+------------+---------------+----------------------+ ROM and hardware  | ("Upper Memory")           |
+| 0x000C8000 | 0x000EFFFF | 160 KiB       | BIOS Expansions      | mapped/Shadow RAM |                            |
+|            |            | (typically)   |                      |                   |                            |
++------------+------------+---------------+----------------------+                   |                            |
+| 0x000F0000 | 0x000FFFFF | 64 KiB        | Motherboard BIOS     |                   |                            |
++------------+------------+---------------+----------------------+-------------------+----------------------------+
+```
+Memory map overview. Source: https://wiki.osdev.org/Memory_Map_(x86)
 
 5. Why we need unreal mode to load `system` to 0x100000?
 

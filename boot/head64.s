@@ -41,7 +41,6 @@ PD_0:
 .org 0x5000
 .globl startup_64
 startup_64:
-	lgdt gdt_descr(%rip)
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		# after changing gdt. CS was already
 	mov %ax,%es		# reloaded in 'setup_gdt'

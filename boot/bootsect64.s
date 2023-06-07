@@ -51,7 +51,7 @@ _start:
   cld
 	mov	$256, %cx		#设置移动计数值256字
 	sub	%si, %si		#源地址	ds:si = 0x07C0:0x0000
-	sub	%di, %di		#目标地址 es:si = 0x9000:0x0000
+	sub	%di, %di		#目标地址 es:di = 0x9000:0x0000
 	rep					#重复执行并递减cx的值
 	movsw				#从内存[si]处移动cx个字到[di]处
 	ljmp	$INITSEG, $go	#段间跳转，这里INITSEG指出跳转到的段地址，解释了cs的值为0x9000
@@ -108,12 +108,6 @@ ok_load_setup:
 # mov $msg1, %bp
 	mov	$0x1301, %ax		# write string, move cursor
 	int	$0x10
-
-# ok, we've written the message, now
-# we want to load the system (at 0x10000)
-
-	mov	$SYSSEG, %ax
-	mov	%ax, %es		# segment of 0x010000
 
 # After that we check which root-device to use. If the device is
 # defined (#= 0), nothing is done and the given device is used.

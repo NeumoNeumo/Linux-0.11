@@ -171,7 +171,7 @@ bochs-clean:
 	@make clean -C tools/bochs/bochs-2.3.7
 
 lldb-as:
-	@echo "gdb 1234" > .lldbinit
+	@echo "gdb 1234\ncommand script import ./tools/lldb_helper.py" > .lldbinit
 	@lldb --local-lldbinit
 
 lldb-src:
