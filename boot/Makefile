@@ -8,7 +8,6 @@ bootsect: bootsect.s
 	@if [ "${TARGET}" = "x86" ]; then\
 		$(AS) -o bootsect.o bootsect.s;\
 		$(LD) $(LDFLAGS) -o bootsect bootsect.o;\
-		$(OBJCOPY) -R .pdr -R .comment -R.note -S -O binary bootsect;\
 	else\
 		as --32 -o bootsect.o bootsect64.s;\
 		ld -m elf_i386 -Ttext 0 -o bootsect bootsect.o;\

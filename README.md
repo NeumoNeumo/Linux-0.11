@@ -91,8 +91,9 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 - [x] Higher Half Kernel @NeumoNeumo
 - [ ] Flash disk boot
 - [ ] tty
-- [ ] memory
-- [ ] schedule
+- [ ] Memory
+  - [ ] E820h routine to get memory map
+- [ ] Schedule
 - [ ] x86_64 Shell
 - [ ] VGA graph mode
 

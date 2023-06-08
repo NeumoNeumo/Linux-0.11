@@ -614,7 +614,7 @@ void con_write(struct tty_struct * tty)
  * Reads the information preserved by setup.s to determine the current display
  * type and sets everything accordingly.
  */
-void con_init(void)
+void con_init(void) // TODO64: sysinfo is rearranged due to E820h
 {
 	register unsigned char a;
 	char *display_desc = "????";

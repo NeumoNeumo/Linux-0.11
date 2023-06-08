@@ -19,6 +19,7 @@ __asm__ ("movl %%esp,%%eax\n\t" \
 
 #define iret() __asm__ ("iret"::)
 
+#ifdef __X86__
 #define _set_gate(gate_addr,type,dpl,addr) \
 __asm__ ("movw %%dx,%%ax\n\t" \
 	"movw %0,%%dx\n\t" \
@@ -29,6 +30,20 @@ __asm__ ("movw %%dx,%%ax\n\t" \
 	"o" (*((char *) (gate_addr))), \
 	"o" (*(4+(char *) (gate_addr))), \
 	"d" ((char *) (addr)),"a" (0x00080000))
+#elif __X64__
+#define _set_gate(gate_addr,type,dpl,addr) \
+__asm__ ( "movl %%eax,%1\n\t" \
+	"andw %0,%%dx\n\t" \
+	"movl %%edx,%2\n\t" \
+	"shrq $32,%%edx\n\t" \
+	"movl %%edx,%3" \
+	: \
+	: "i" ((short) (0x8000+(dpl<<13)+(type<<8))), \
+	"o" (*((char *) (gate_addr))), \
+	"o" (*(4+(char *) (gate_addr))), \
+	"o" (*(8+(char *) (gate_addr))), \
+	"d" ((char *) (addr) & 0xFFFFFFFFFFFF0000),"a" ((char *) (addr) & 0x8FFFF)
+#endif
 
 #define set_intr_gate(n,addr) \
 	_set_gate(&idt[n],14,0,addr)

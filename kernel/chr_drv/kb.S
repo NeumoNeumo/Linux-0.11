@@ -35,12 +35,23 @@ e0:	.byte 0
  *  ascii character(s).
  */
 keyboard_interrupt:
-	pushl %eax
-	pushl %ebx
-	pushl %ecx
-	pushl %edx
+#ifdef __X64__
+	push %rax
+	push %rbx
+	push %rcx
+	push %rdx
+	mov %ds, %ax
+	push %ax
+	mov %es, %ax
+	push %ax
+#elif __X86__
+	push %eax
+	push %ebx
+	push %ecx
+	push %edx
 	push %ds
 	push %es
+#endif
 	movl $0x10,%eax
 	mov %ax,%ds
 	mov %ax,%es
@@ -65,15 +76,30 @@ e0_e1:	inb $0x61,%al
 	outb %al,$0x61
 	movb $0x20,%al
 	outb %al,$0x20
+#ifdef __X86__
 	pushl $0
+#elif __X64__
+	pushq $0
+#endif
 	call do_tty_interrupt
 	addl $4,%esp
+#ifdef __X86__
 	pop %es
 	pop %ds
 	popl %edx
 	popl %ecx
 	popl %ebx
 	popl %eax
+#elif __X64__
+	pop %ax
+	mov %ax, %es
+	pop %ax
+	mov %ax, %ds
+	pop %rdx
+	pop %rcx
+	pop %rbx
+	pop %rax
+#endif
 	iret
 set_e0:	movb $1,e0
 	jmp e0_e1
@@ -86,8 +112,13 @@ set_e1:	movb $2,e0
  * order %al,%ah,%eal,%eah,%bl,%bh ... until %eax is zero.
  */
 put_queue:
-	pushl %ecx
-	pushl %edx
+#ifdef __X86__
+	push %ecx
+	push %edx
+#elif __X64__
+	push %rcx
+	push %rdx
+#endif
 	movl table_list,%edx		# read-queue for console
 	movl head(%edx),%ecx
 1:	movb %al,buf(%edx,%ecx)
@@ -104,8 +135,14 @@ put_queue:
 	testl %ecx,%ecx
 	je 3f
 	movl $0,(%ecx)
-3:	popl %edx
+3:	
+#ifdef __X86__
+	popl %edx
 	popl %ecx
+#elif __X64__
+	pop %rdx
+	pop %rcx
+#endif
 	ret
 
 ctrl:	movb $0x04,%al
@@ -208,13 +245,26 @@ cur_table:
  * this routine handles function keys
  */
 func:
+#ifdef __X86__
 	pushl %eax
 	pushl %ecx
 	pushl %edx
+#elif __X64__
+	push %rax
+	push %rcx
+	push %rdx
+#endif
+#ifdef __X86__
 	call show_stat
 	popl %edx
 	popl %ecx
 	popl %eax
+#elif __X64__
+	# call show_stat # TODO64
+	pop %rdx
+	pop %rcx
+	pop %rax
+#endif
 	subb $0x3B,%al
 	jb end_func
 	cmpb $9,%al
