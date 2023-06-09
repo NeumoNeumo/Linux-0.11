@@ -45,7 +45,6 @@ void show_stat(void)
 
 #define LATCH (1193180/HZ)
 
-extern void mem_use(void);
 
 extern int timer_interrupt(void);
 extern int system_call(void);
@@ -160,6 +159,7 @@ void sleep_on(struct task_struct **p)
 	*p = current;
 	current->state = TASK_UNINTERRUPTIBLE;
 	schedule();
+	*p = tmp;
 	if (tmp)
 		tmp->state=0;
 }
@@ -180,7 +180,7 @@ repeat:	current->state = TASK_INTERRUPTIBLE;
 		(**p).state=0;
 		goto repeat;
 	}
-	*p=NULL;
+	*p = tmp;
 	if (tmp)
 		tmp->state=0;
 }
@@ -189,7 +189,6 @@ void wake_up(struct task_struct **p)
 {
 	if (p && *p) {
 		(**p).state=0;
-		*p=NULL;
 	}
 }
 

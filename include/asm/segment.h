@@ -1,3 +1,5 @@
+#ifndef _SEGMENT_H
+#define _SEGMENT_H
 static inline unsigned char get_fs_byte(const char * addr)
 {
 	unsigned register char _v;
@@ -62,4 +64,4 @@ static inline void set_fs(unsigned long val)
 {
 	__asm__("mov %0,%%fs"::"a" ((unsigned short) val));
 }
-
+#endif
