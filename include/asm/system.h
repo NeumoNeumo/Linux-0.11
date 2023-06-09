@@ -1,3 +1,8 @@
+#ifndef _SYSTEM_H
+#define _SYSTEM_H
+
+#include <stdint.h>
+
 #define move_to_user_mode() \
 __asm__ ("movl %%esp,%%eax\n\t" \
 	"pushl $0x17\n\t" \
@@ -31,18 +36,19 @@ __asm__ ("movw %%dx,%%ax\n\t" \
 	"o" (*(4+(char *) (gate_addr))), \
 	"d" ((char *) (addr)),"a" (0x00080000))
 #elif __X64__
-#define _set_gate(gate_addr,type,dpl,addr) \
+#define _set_gate(gate_addr, type, dpl, addr) \
 __asm__ ( "movl %%eax,%1\n\t" \
-	"andw %0,%%dx\n\t" \
+	"movw %0,%%dx\n\t" \
 	"movl %%edx,%2\n\t" \
-	"shrq $32,%%edx\n\t" \
+	"shrq $32,%%rdx\n\t" \
 	"movl %%edx,%3" \
 	: \
 	: "i" ((short) (0x8000+(dpl<<13)+(type<<8))), \
 	"o" (*((char *) (gate_addr))), \
 	"o" (*(4+(char *) (gate_addr))), \
 	"o" (*(8+(char *) (gate_addr))), \
-	"d" ((char *) (addr) & 0xFFFFFFFFFFFF0000),"a" ((char *) (addr) & 0x8FFFF)
+	"d" ((uint64_t) (addr) & 0xFFFFFFFFFFFF0000), \
+	"a" ((uint64_t) (addr) & 0xFFFF | 0x80000))
 #endif
 
 #define set_intr_gate(n,addr) \
@@ -79,4 +85,4 @@ __asm__ ("movw $104,%1\n\t" \
 
 #define set_tss_desc(n,addr) _set_tssldt_desc(((char *) (n)),((int)(addr)),"0x89")
 #define set_ldt_desc(n,addr) _set_tssldt_desc(((char *) (n)),((int)(addr)),"0x82")
-
+#endif
