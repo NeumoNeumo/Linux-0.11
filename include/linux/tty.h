@@ -10,9 +10,11 @@
 #define _TTY_H
 
 #include <termios.h>
+#include <stdint.h>
 
 #define TTY_BUF_SIZE 1024
 
+#ifdef __X86__
 struct tty_queue {
 	unsigned long data;
 	unsigned long head;
@@ -20,6 +22,15 @@ struct tty_queue {
 	struct task_struct * proc_list;
 	char buf[TTY_BUF_SIZE];
 };
+#elif __X64__
+struct tty_queue {
+	uint32_t data;
+	uint32_t head;
+	uint32_t tail;
+	struct task_struct * proc_list;
+	char buf[TTY_BUF_SIZE];
+};
+#endif
 
 #define INC(a) ((a) = ((a)+1) & (TTY_BUF_SIZE-1))
 #define DEC(a) ((a) = ((a)-1) & (TTY_BUF_SIZE-1))

@@ -20,8 +20,8 @@
  * won't be any messing with the stack from main(), but we define
  * some others too.
  */
-static inline fork(void) __attribute__((always_inline));
-static inline pause(void) __attribute__((always_inline));
+static inline int fork(void) __attribute__((always_inline));
+static inline int pause(void) __attribute__((always_inline));
 static inline _syscall0(int,fork)
 static inline _syscall0(int,pause)
 static inline _syscall1(int,setup,void *,BIOS)
@@ -57,9 +57,11 @@ extern long startup_time;
 /*
  * This is set up by the setup-routine at boot-time
  */
-#define EXT_MEM_K (*(unsigned short *)0x90002)
+#define EXT_MEM_K (*(unsigned short *)0x90002) // TODO64
 #define DRIVE_INFO (*(struct drive_info *)0x90080)
 #define ORIG_ROOT_DEV (*(unsigned short *)0x901FC)
+
+#ifdef __X86__
 
 /*
  * Yeah, yeah, it's ugly, but I cannot find how to do this correctly
@@ -67,9 +69,9 @@ extern long startup_time;
  * clock I'd be interested. Most of this was trial and error, and some
  * bios-listing reading. Urghh.
  */
-
+// No need to `or` addr with 0x80
 #define CMOS_READ(addr) ({ \
-outb_p(0x80|addr,0x70); \
+outb_p(addr,0x70); \
 inb_p(0x71); \
 })
 
@@ -103,6 +105,8 @@ static long main_memory_start = 0;
 
 struct drive_info { char dummy[32]; } drive_info;
 
+#endif
+
 void main(void)		/* This really IS void, no error here. */
 {			/* The startup routine assumes (well, ...) this */
 /*
@@ -110,6 +114,7 @@ void main(void)		/* This really IS void, no error here. */
  * enable them
  */
 
+#ifdef __X86__
  	ROOT_DEV = ORIG_ROOT_DEV;
  	drive_info = DRIVE_INFO;
 	memory_end = (1<<20) + (EXT_MEM_K<<10);
@@ -149,8 +154,13 @@ void main(void)		/* This really IS void, no error here. */
  * task can run, and if not we return here.
  */
 	for(;;) pause();
+#elif __X64__
+  int a = 1/0;
+  while(1);
+#endif
 }
 
+#ifdef __X86__
 static int printf(const char *fmt, ...)
 {
 	va_list args;
@@ -210,3 +220,4 @@ void init(void)
 	}
 	_exit(0);	/* NOTE! _exit, not exit() */
 }
+#endif

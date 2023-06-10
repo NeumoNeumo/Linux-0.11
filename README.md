@@ -63,6 +63,7 @@ database for clang tooling.
 ## 2.1 Special Marks
 You can search these marks globally in this repo to check them.
 1. TODO64: something to be done to port to x86_64
+2. WHY?: I don't known why
 
 ## 2.2 Difference between x86 and x86_64
 Here are some differences between x86 and x86_64 to provides an overview to what
@@ -94,6 +95,7 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 - [ ] Memory
   - [ ] E820h routine to get memory map
 - [ ] Schedule
+  - [ ] sleep and wakeup: FILO -> FIFO
 - [ ] x86_64 Shell
 - [ ] VGA graph mode
 

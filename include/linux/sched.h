@@ -123,6 +123,17 @@ struct proc_regs {
 	uint16_t fs;
 	uint16_t gs;
 };
+
+struct mm_struct
+{
+	uint64_t pml4;
+	uint64_t start_code,end_code;
+	uint64_t start_data,end_data;
+	uint64_t start_rodata,end_rodata;
+	uint64_t start_bss,end_bss;
+	uint64_t start_brk,end_brk;
+	uint64_t start_stack;
+};
 #endif
 
 struct task_struct {
@@ -154,12 +165,13 @@ struct task_struct {
 #ifdef __X86__
 	struct desc_struct ldt[3];
 #elif __X64__
-	struct ldt_entry ldt[3];
+	struct mm_struct mmap;
 #endif
 /* tss for this task */
 	struct tss_struct tss;
 };
 
+#ifdef __X86__
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x9ffff (=640kB)
@@ -186,6 +198,20 @@ struct task_struct {
 		{} \
 	}, \
 }
+#elif __X64__
+#define INIT_TASK \
+	{ .state=0, .counter=15, .priority=15, \
+	.signal=0, .sigaction={{},}, .blocked=0, \
+	.exit_code=0, .start_code=0, .end_code=0, .end_data=0, .brk=0, .start_stack=0, \
+	.pid=0, .father=-1, .pgrp=0, .session=0, .leader=0, \
+	.uid=0, .euid=0, .suid=0, .gid=0, .egid=0, .sgid=0, \
+	.alarm=0, .utime=0, .stime=0, .cutime=0, .cstime=0, .start_time=0, \
+	.used_math=0, \
+ 	.tty=-1, .umask=0022, .pwd=NULL, .root=NULL, .executable=NULL, .close_on_exec=0, \
+	.filp={NULL,}, \
+	.tss={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, \
+} //TODO64 tss->kernel stack
+#endif
 
 extern struct task_struct *task[NR_TASKS];
 extern struct task_struct *last_task_used_math;
