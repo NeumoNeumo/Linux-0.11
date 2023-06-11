@@ -41,9 +41,9 @@ PD_0:
 .org 0x5000
 .globl startup_64
 startup_64:
-	movl $0x10,%eax		# reload all the segment registers
-	mov %ax,%ds		# after changing gdt. CS was already
-	mov %ax,%es		# reloaded in 'setup_gdt'
+	movl $0x10,%eax
+	mov %ax,%ds
+	mov %ax,%es
 	mov %ax,%fs
 	mov %ax,%gs
 	mov %ax,%ss
@@ -55,7 +55,20 @@ startup_64:
 	lretq
 
 turn_HHK:
- .quad setup_idt # 0xFFFF8000XXXXXXXX after ld
+ .quad post_HHK # 0xFFFF8000XXXXXXXX after ld
+
+
+post_HHK:
+	movq $0, PML4(%rip)
+resetup_gdt:
+	lgdt gdt_descr(%rip)
+	movl $0x10,%eax
+	mov %ax,%ds
+	mov %ax,%es
+	mov %ax,%fs
+	mov %ax,%gs
+	mov %ax,%ss
+	mov stack_start(%rip),%rsp
 
 /*
  *	setup_idt
@@ -68,7 +81,6 @@ turn_HHK:
  *	sure everything is ok. This routine will be over-
  *	written by the page tables.
  */
-
 setup_idt:
 	lea ignore_int(%rip),%rdx
 	movl $0x00080000,%eax /* selector = 0x0008 = cs */
@@ -78,11 +90,11 @@ setup_idt:
 	lea idt(%rip), %rdi
 	mov $256,%ecx
 rp_sidt:
-	movl %eax,(%edi)
-	movl %edx,4(%edi)
-	movq %rbx,8(%edi)
-# movl %ebx,12(%edi)
-	addl $16,%edi
+	movl %eax,(%rdi)
+	movl %edx,4(%rdi)
+	movq %rbx,8(%rdi)
+# movl %ebx,12(%rdi)
+	addq $16,%rdi
 	dec %ecx
 	jne rp_sidt
 	lidt idt_descr(%rip)
@@ -245,4 +257,4 @@ tss_table:
 	.fill 26,4,0 # 26 * 4 = 104 (64bit TSS)
 
 stack_start:		# TODO This should be removed after sched.c is compiled
-	.quad 0x200000
+	.quad 0xFFFF800000200000

@@ -404,15 +404,15 @@ ok1_read:
 ok2_read:
 	call read_track
 	call move_1MB
-	mov $0, sread
+	movw $0, sread
 	mov cur_head, %ax
 	sub heads, %ax
 	jne 	ok4_read
-	mov $0, cur_head
+	movw $0, cur_head
 	incw cur_track 
 	jmp rp_read
 ok4_read:
-	inc cur_head
+	incw cur_head
 	jmp	rp_read
 
 # al: nu_sect to be moved; from 0x10000 to 1MB

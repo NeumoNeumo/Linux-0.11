@@ -21,6 +21,9 @@ all: mm.o
 mm.o: $(OBJS)
 	@$(LD) $(LDFLAGS) -o mm.o $(OBJS)
 
+page.s: page.S
+	@$(CPP) -E -o page.s page.S
+
 clean:
 	@rm -f core *.o *.a tmp_make
 	@for i in *.c;do rm -f `basename $$i .c`.s;done
