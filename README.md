@@ -162,7 +162,7 @@ The x64 boot process can be summarized as follows:
 - Setup TSS for kernel stack
 - Jump to main.c
 
-# FAQ
+## FAQ
 
 1. Why do we need to setup gdt/ldt in setup64.s since we will reset it in
    head64.s?

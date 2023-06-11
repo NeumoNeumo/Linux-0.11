@@ -11,6 +11,7 @@
 
 .globl page_fault
 
+#ifdef __X86__
 page_fault:
 	xchgl %eax,(%esp)
 	pushl %ecx
@@ -38,3 +39,26 @@ page_fault:
 	popl %ecx
 	popl %eax
 	iret
+#elif __X64__
+page_fault:
+	xchgq %rdi,(%rsp)
+	pushq %rsi
+	pushq %rdx
+	pushq %rcx
+	pushq %r8
+	pushq %r9
+	movq %cr2,%rsi
+	testq $1,%rdi
+	jne 1f
+	call do_no_page
+	jmp 2f
+1:	call do_wp_page
+2:
+	popq %r9
+	popq %r8
+	popq %rcx
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	iret
+#endif
