@@ -107,23 +107,23 @@ int free_page_tables(unsigned long from,unsigned long size)
 	unsigned long *pg_table;
 	unsigned long * dir, nr;
 
-	if (from & 0x3fffff)
+	if (from & 0x1fffff) // modified
 		panic("free_page_tables called with wrong alignment");
 	if (!from)
 		panic("Trying to free up swapper memory space");
-	size = (size + 0x3fffff) >> 22;
-	dir = (unsigned long *) ((from>>20) & 0xffc); /* _pg_dir = 0 */
+	size = (size + 0x1fffff) >> 21; // modified
+	dir = (unsigned long *) ((from>>18) & 0xff8); /* _pg_dir = 0 */ // modified, (from>>21)<<3
 	for ( ; size-->0 ; dir++) {
 		if (!(1 & *dir))
 			continue;
-		pg_table = (unsigned long *) (0xfffff000 & *dir);
-		for (nr=0 ; nr<1024 ; nr++) {
+		pg_table = (unsigned long *) (0xfffffffffffff000 & *dir); // extended
+		for (nr=0 ; nr<512 ; nr++) { // modified, there are 512 entries in a page table
 			if (1 & *pg_table)
-				free_page(0xfffff000 & *pg_table);
+				free_page(0xfffffffffffff000 & *pg_table); // extended
 			*pg_table = 0;
 			pg_table++;
 		}
-		free_page(0xfffff000 & *dir);
+		free_page(0xfffffffffffff000 & *dir); // extended
 		*dir = 0;
 	}
 	invalidate();
