@@ -85,6 +85,7 @@ return __res;
 /*
  * Free a page of memory at physical address 'addr'. Used by
  * 'free_page_tables()'
+ * (perhaps) no need to change
  */
 void free_page(unsigned long addr)
 {
@@ -101,6 +102,7 @@ void free_page(unsigned long addr)
 /*
  * This function frees a continuos block of page tables, as needed
  * by 'exit()'. As does copy_page_tables(), this handles only 4Mb blocks.
+ * already modified
  */
 int free_page_tables(unsigned long from,unsigned long size)
 {
