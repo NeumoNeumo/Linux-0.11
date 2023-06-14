@@ -104,6 +104,8 @@ void free_page(unsigned long addr)
  * by 'exit()'. As does copy_page_tables(), this handles only 4Mb blocks.
  * already modified
  */
+
+#ifdef __X64__
 int free_page_tables(unsigned long from,unsigned long size)
 {
 	unsigned long *pg_table;
@@ -131,6 +133,10 @@ int free_page_tables(unsigned long from,unsigned long size)
 	invalidate();
 	return 0;
 }
+#endif
+
+#ifdef __X86__
+#endif
 
 /*
  *  Well, here is one of the most complicated functions in mm. It
