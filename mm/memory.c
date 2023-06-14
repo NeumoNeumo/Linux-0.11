@@ -120,14 +120,14 @@ int free_page_tables(unsigned long from,unsigned long size)
 	for ( ; size-->0 ; dir++) {
 		if (!(1 & *dir))
 			continue;
-		pg_table = (unsigned long *) (0xfffffffffffff000 & *dir); // extended
+		pg_table = (unsigned long *) (0x0000fffffffff000 & *dir); // extended
 		for (nr=0 ; nr<512 ; nr++) { // modified, there are 512 entries in a page table
 			if (1 & *pg_table)
-				free_page(0xfffffffffffff000 & *pg_table); // extended
+				free_page(0x0000fffffffff000 & *pg_table); // extended
 			*pg_table = 0;
 			pg_table++;
 		}
-		free_page(0xfffffffffffff000 & *dir); // extended
+		free_page(0x0000fffffffff000 & *dir); // extended
 		*dir = 0;
 	}
 	invalidate();
@@ -433,6 +433,7 @@ void do_no_page(unsigned long error_code,unsigned long address)
 	oom();
 }
 
+// (perhaps) No need to change
 void mem_init(long start_mem, long end_mem)
 {
 	int i;
@@ -447,6 +448,7 @@ void mem_init(long start_mem, long end_mem)
 		mem_map[i++]=0;
 }
 
+#ifdef __X86__
 void calc_mem(void)
 {
 	int i,j,k,free=0;
@@ -465,3 +467,35 @@ void calc_mem(void)
 		}
 	}
 }
+#endif
+
+#ifdef __X64__
+void calc_mem(void)
+{
+	int i,j,k,free=0;
+	long * pg_tbl_2;
+	long * pg_tbl_3;
+	long * pg_tbl_4;
+
+	for(i=0 ; i<PAGING_PAGES ; i++)
+		if (!mem_map[i]) free++;
+	printk("%d pages free (of %d)\n\r",free,PAGING_PAGES);
+	for(i=2 ; i<512 ; i++) { 
+		if (1&pg_dir[i]) {
+			pg_tbl_2=(long *) (0x0000fffffffff000 & pg_dir[i]); // l2 page table
+			for(j=0 ; j<512 ; j++) 
+				if (pg_tbl_2[j]&1){
+					pg_tbl_3=(long *) (0x0000fffffffff000 & pg_tbl_2[j]); // l3 page table
+					for (x=0 ; x<512 ; x++)
+						if (pg_tbl_3[x]&1){
+							pg_tbl_4=(long *) (0x0000fffffffff000 & pg_tbl_3[x]); // l4 page table
+							for (y=k=0 ; y<512 ; y++)
+								if (pg_tbl_4[y]&1)
+									k++;
+							printk("Pg-dir[%d][%d][%d] uses %d pages\n",i,j,x,k);
+						}
+				}
+		}
+	}
+}
+#endif
