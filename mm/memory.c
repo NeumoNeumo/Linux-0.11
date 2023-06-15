@@ -359,6 +359,7 @@ unsigned long put_page(unsigned long page,unsigned long address)
 }
 #endif
 
+#ifdef __X86__
 void un_wp_page(unsigned long * table_entry)
 {
 	unsigned long old_page,new_page;
@@ -377,6 +378,28 @@ void un_wp_page(unsigned long * table_entry)
 	invalidate();
 	copy_page(old_page,new_page);
 }	
+#endif
+
+#ifdef __X64__
+void un_wp_page(unsigned long * table_entry)
+{
+	unsigned long old_page,new_page;
+
+	old_page = 0x0000fffffffff000 & *table_entry;
+	if (old_page >= LOW_MEM && mem_map[MAP_NR(old_page)]==1) {
+		*table_entry |= 2;
+		invalidate();
+		return;
+	}
+	if (!(new_page=get_free_page()))
+		oom();
+	if (old_page >= LOW_MEM)
+		mem_map[MAP_NR(old_page)]--;
+	*table_entry = new_page | 7;
+	invalidate();
+	copy_page(old_page,new_page);
+}	
+#endif
 
 /*
  * This routine handles present pages, when users try to write
@@ -385,6 +408,7 @@ void un_wp_page(unsigned long * table_entry)
  *
  * If it's in code space we exit with a segment error.
  */
+#ifdef __X86__
 void do_wp_page(unsigned long error_code,unsigned long address)
 {
 #if 0
@@ -398,6 +422,25 @@ void do_wp_page(unsigned long error_code,unsigned long address)
 		*((unsigned long *) ((address>>20) &0xffc)))));
 
 }
+#endif
+
+#ifdef __X64__
+void do_wp_page(unsigned long error_code,unsigned long address)
+{
+#if 0
+/* we cannot do this yet: the estdio library writes to code space */
+/* stupid, stupid. I really want the libc.a from GNU */
+	if (CODE_SPACE(address))
+		do_exit(SIGSEGV);
+#endif
+	un_wp_page((unsigned long *)
+		(((address>>9) & 0xff8) + (0x0000fffffffff000 &
+		*((unsigned long *) (((address>>18) &0xff8) + (0x0000fffffffff000 &
+		*((unsigned long *) (((address>>27) &0xff8) + (0x0000fffffffff000 &
+		*((unsigned long *) (((address>>36) &0xff8))))))))))));
+
+}
+#endif
 
 #ifdef __X86__
 void write_verify(unsigned long address)
