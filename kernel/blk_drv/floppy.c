@@ -152,6 +152,61 @@ repeat:
 	return 0;
 }
 
+#ifdef __x64__
+static void setup_DMA(void)
+{
+	uintptr_t addr = (uintptr_t) CURRENT->buffer;
+
+	cli();
+	if (addr >= 0x100000) {
+		addr = (uintptr_t) tmp_floppy_area;
+		if (command == FD_WRITE)
+			copy_buffer(CURRENT->buffer,tmp_floppy_area);
+	}
+/* mask DMA 2 */
+	immoutb_p(4|2,10);
+/* output command byte. I don't know why, but everyone (minix, */
+/* sanches & canton) output this twice, first to 12 then to 11 */
+ 	__asm__("outb %%al,$12\n\tjmp 1f\n1:\tjmp 1f\n1:\t"
+	"outb %%al,$11\n\tjmp 1f\n1:\tjmp 1f\n1:"::
+	"a" ((char) ((command == FD_READ)?DMA_READ:DMA_WRITE)));
+/* 8 low bits of addr */
+	immoutb_p(addr,4);
+	addr >>= 8;
+/* bits 8-15 of addr */
+	immoutb_p(addr,4);
+	addr >>= 8;
+/* bits 16-19 of addr */
+	immoutb_p(addr,0x81);
+/* low 8 bits of count-1 (1024-1=0x3ff) */
+	immoutb_p(0xff,5);
+/* high 8 bits of count-1 */
+	immoutb_p(3,5);
+/* activate DMA 2 */
+	immoutb_p(0|2,10);
+	sti();
+}
+
+static void output_byte(char byte)
+{
+	int counter;
+	unsigned char status;
+
+	if (reset)
+		return;
+	for(counter = 0 ; counter < 10000 ; counter++) {
+		status = inb_p(FD_STATUS) & (STATUS_READY | STATUS_DIR);
+		if (status == STATUS_READY) {
+			outb(byte,FD_DATA);
+			return;
+		}
+	}
+	reset = 1;
+	printk("Unable to send byte to FDC\n\r");
+}
+#endif
+
+#ifdef __x86__
 #define copy_buffer(from,to) \
 __asm__("cld ; rep ; movsl" \
 	::"c" (BLOCK_SIZE/4),"S" ((long)(from)),"D" ((long)(to)) \
@@ -208,6 +263,7 @@ static void output_byte(char byte)
 	reset = 1;
 	printk("Unable to send byte to FDC\n\r");
 }
+#endif
 
 static int result(void)
 {
