@@ -37,13 +37,15 @@ e0:	.byte 0
 keyboard_interrupt:
 #ifdef __X64__
 	push %rax
-	push %rbx
+	push %rbx # TODO64: we can remove %rbx if we use %rax to replace %ebx:%eax
 	push %rcx
 	push %rdx
-	mov %ds, %ax
-	push %ax
-	mov %es, %ax
-	push %ax
+	push %rdi
+	push %rsi
+	push %r8
+	push %r9
+	push %r10
+	push %r11
 #elif __X86__
 	push %eax
 	push %ebx
@@ -78,12 +80,8 @@ e0_e1:	inb $0x61,%al
 	outb %al,$0x20
 #ifdef __X86__
 	pushl $0
-#elif __X64__
-	pushq $0
-#endif
 	call do_tty_interrupt
 	addl $4,%esp
-#ifdef __X86__
 	pop %es
 	pop %ds
 	popl %edx
@@ -91,10 +89,15 @@ e0_e1:	inb $0x61,%al
 	popl %ebx
 	popl %eax
 #elif __X64__
-	pop %ax
-	mov %ax, %es
-	pop %ax
-	mov %ax, %ds
+	pushq $0
+	call do_tty_interrupt
+	addq $4,%rsp
+	pop %r11
+	pop %r10
+	pop %r9
+	pop %r8
+	pop %rsi
+	pop %rdi
 	pop %rdx
 	pop %rcx
 	pop %rbx
@@ -116,8 +119,8 @@ put_queue:
 	push %ecx
 	push %edx
 #elif __X64__
-	push %rcx
-	push %rdx
+	#push %rcx
+	#push %rdx
 #endif
 	movl table_list,%edx		# read-queue for console
 	movl head(%edx),%ecx
@@ -140,8 +143,8 @@ put_queue:
 	popl %edx
 	popl %ecx
 #elif __X64__
-	pop %rdx
-	pop %rcx
+	#pop %rdx
+	#pop %rcx
 #endif
 	ret
 
@@ -249,20 +252,29 @@ func:
 	pushl %eax
 	pushl %ecx
 	pushl %edx
-#elif __X64__
-	push %rax
-	push %rcx
-	push %rdx
-#endif
-#ifdef __X86__
 	call show_stat
 	popl %edx
 	popl %ecx
 	popl %eax
 #elif __X64__
+	push %rax
+	#push %rdi
+	#push %rsi
+	#push %rdx
+	push %rcx
+	#push %r8
+	#push %r9
+	#push %r10
+	#push %r11
 	# call show_stat # TODO64
-	pop %rdx
+	#pop %r11
+	#pop %r10
+	#pop %r9
+	#pop %r8
 	pop %rcx
+	#pop %rdx
+	#pop %rsi
+	#pop %rdi
 	pop %rax
 #endif
 	subb $0x3B,%al
@@ -530,7 +542,11 @@ do_self:
 	orb $0x80,%al
 4:	andl $0xff,%eax
 	xorl %ebx,%ebx
+#ifdef __X86__
 	call put_queue
+#elif __X64__
+	jmp put_queue
+#endif
 none:	ret
 
 /*
