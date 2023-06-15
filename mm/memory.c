@@ -116,16 +116,30 @@ int free_page_tables(unsigned long from,unsigned long size)
 	if (!from)
 		panic("Trying to free up swapper memory space");
 	size = (size + 0x1fffff) >> 21; // modified
-	dir = (unsigned long *) ((from>>18) & 0xff8); /* _pg_dir = 0 */ // modified, (from>>21)<<3
+	dir = (unsigned long *) ((from>>36) & 0xff8); /* _pg_dir = 0 */ // modified, (from>>21)<<3
 	for ( ; size-->0 ; dir++) {
 		if (!(1 & *dir))
 			continue;
-		pg_table = (unsigned long *) (0x0000fffffffff000 & *dir); // extended
+		pg_table_l2 = (unsigned long *) (0x0000fffffffff000 & *dir);
 		for (nr=0 ; nr<512 ; nr++) { // modified, there are 512 entries in a page table
-			if (1 & *pg_table)
-				free_page(0x0000fffffffff000 & *pg_table); // extended
-			*pg_table = 0;
-			pg_table++;
+			if (1 & *pg_table_l2){
+				pg_table_l3 = (unsigned long *) (0x0000fffffffff000 & *pg_table_l2);
+				for (nr_2=0 ; nr_2<512 ; nr++){
+					if (1 & *pg_table_l3){
+						pg_table = (unsigned long *) (0x0000fffffffff000 & *pg_table_l3);
+						for (nr_3=0 ; nr_3<512 ; nr_3++){
+							if (1 & *pg_table)
+								free_page(0x0000fffffffff000 & *pg_table);
+							*pg_table = 0;
+							pg_table++;
+						}
+					}
+					*pg_table_l3 = 0;
+					pg_table_l3++;
+				}
+			}
+			*pg_table_l2 = 0;
+			pg_table_l2++;
 		}
 		free_page(0x0000fffffffff000 & *dir); // extended
 		*dir = 0;
@@ -325,6 +339,7 @@ void get_empty_page(unsigned long address)
  * NOTE! This assumes we have checked that p != current, and that they
  * share the same executable.
  */
+#ifdef __X86__
 static int try_to_share(unsigned long address, struct task_struct * p)
 {
 	unsigned long from;
@@ -369,6 +384,62 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 	mem_map[phys_addr]++;
 	return 1;
 }
+#endif
+
+#ifdef __X64__
+static int try_to_share(unsigned long address, struct task_struct * p)
+{
+	unsigned long from;
+	unsigned long to;
+	unsigned long from_page;
+	unsigned long to_page;
+	unsigned long phys_addr;
+
+	from_page = to_page = ((address>>36) & 0xff8);
+	from_page += ((p->start_code>>36) & 0xff8);
+	to_page += ((current->start_code>>36) & 0xff8);
+/* is there a page-directory at from? */
+	from = *(unsigned long *) from_page;
+	if (!(from & 1))
+		return 0;
+	from &= 0x0000fffffffff000;
+	from_page = from + ((address>>27) & 0xff8); //12,21,30,39
+	from = *(unsigned long *) from_page;
+	from_page = from + ((address>>18) & 0xff8);
+	from = *(unsigned long *) from_page;
+	from_page = from + ((address>>9) & 0xff8);
+	phys_addr = *(unsigned long *) from_page;
+/* is the page clean and present? */
+	if ((phys_addr & 0x41) != 0x01) // if not (clean and present)
+		return 0;
+	phys_addr &= 0x0000fffffffff000;
+	if (phys_addr >= HIGH_MEMORY || phys_addr < LOW_MEM)
+		return 0;
+	to = *(unsigned long *) to_page;
+	if (!(to & 1)) {
+		if ((to = get_free_page()))
+			*(unsigned long *) to_page = to | 7;
+		else
+			oom();
+	}
+	to &= 0x0000fffffffff000;
+	to_page = to + ((address>>27) & 0xff8);
+	to = *(unsigned long *) to_page
+	to_page = to + ((address>>18) & 0xff8);
+	to = *(unsigned long *) to_page
+	to_page = to + ((address>>9) & 0xff8);
+	if (1 & *(unsigned long *) to_page)
+		panic("try_to_share: to_page already exists");
+/* share them: write-protect */
+	*(unsigned long *) from_page &= ~2;
+	*(unsigned long *) to_page = *(unsigned long *) from_page;
+	invalidate();
+	phys_addr -= LOW_MEM;
+	phys_addr >>= 12;
+	mem_map[phys_addr]++;
+	return 1;
+}
+#endif
 
 /*
  * share_page() tries to find a process that could share a page with
