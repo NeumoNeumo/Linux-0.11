@@ -108,8 +108,8 @@ void free_page(unsigned long addr)
 #ifdef __X64__
 int free_page_tables(unsigned long from,unsigned long size)
 {
-	unsigned long *pg_table;
-	unsigned long * dir, nr;
+	unsigned long *pg_table, *pg_table_l2, *pg_table_l3;
+	unsigned long * dir, nr, nr_2, nr_3;
 
 	if (from & 0x1fffff) // modified
 		panic("free_page_tables called with wrong alignment");
@@ -470,6 +470,7 @@ static int share_page(unsigned long address)
 	return 0;
 }
 
+#ifdef __X86__
 void do_no_page(unsigned long error_code,unsigned long address)
 {
 	int nr[4];
@@ -503,6 +504,43 @@ void do_no_page(unsigned long error_code,unsigned long address)
 	free_page(page);
 	oom();
 }
+#endif
+
+#ifdef __X64__
+void do_no_page(unsigned long error_code,unsigned long address)
+{
+	int nr[4];
+	unsigned long tmp;
+	unsigned long page;
+	int block,i;
+
+	address &= 0x0000fffffffff000;
+	tmp = address - current->start_code;
+	if (!current->executable || tmp >= current->end_data) {
+		get_empty_page(address);
+		return;
+	}
+	if (share_page(tmp))
+		return;
+	if (!(page = get_free_page()))
+		oom();
+/* remember that 1 block is used for header */
+	block = 1 + tmp/BLOCK_SIZE;
+	for (i=0 ; i<4 ; block++,i++)
+		nr[i] = bmap(current->executable,block);
+	bread_page(page,current->executable->i_dev,nr);
+	i = tmp + 4096 - current->end_data;
+	tmp = page + 4096;
+	while (i-- > 0) {
+		tmp--;
+		*(char *)tmp = 0;
+	}
+	if (put_page(page,address))
+		return;
+	free_page(page);
+	oom();
+}
+#endif
 
 // (perhaps) No need to change
 void mem_init(long start_mem, long end_mem)
@@ -543,7 +581,7 @@ void calc_mem(void)
 #ifdef __X64__
 void calc_mem(void)
 {
-	int i,j,k,free=0;
+	int i,j,k,x,y,free=0;
 	long * pg_tbl_2;
 	long * pg_tbl_3;
 	long * pg_tbl_4;
