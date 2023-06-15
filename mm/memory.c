@@ -289,6 +289,7 @@ int copy_page_tables(unsigned long from,unsigned long to,long size)
  * out of memory (either when trying to access page-table or
  * page.)
  */
+#ifdef __X86__
 unsigned long put_page(unsigned long page,unsigned long address)
 {
 	unsigned long tmp, *page_table;
@@ -312,6 +313,51 @@ unsigned long put_page(unsigned long page,unsigned long address)
 /* no need for invalidate */
 	return page;
 }
+#endif
+
+#ifdef __X64__
+unsigned long put_page(unsigned long page,unsigned long address)
+{
+	unsigned long tmp, *page_table;
+
+/* NOTE !!! This uses the fact that _pg_dir=0 */
+
+	if (page < LOW_MEM || page >= HIGH_MEMORY)
+		printk("Trying to put page %p at %p\n",page,address);
+	if (mem_map[(page-LOW_MEM)>>12] != 1)
+		printk("mem_map disagrees with %p at %p\n",page,address);
+	page_table = (unsigned long *) ((address>>36) & 0xff8);
+	if ((*page_table)&1)
+		page_table = (unsigned long *) (0x0000fffffffff000 & *page_table);
+	else {
+		if (!(tmp=get_free_page()))
+			return 0;
+		*page_table = tmp|7;
+		page_table = (unsigned long *) tmp;
+	}
+	page_table += (unsigned long *) ((address>>27) & 0xff8);
+	if ((*page_table)&1)
+		page_table = (unsigned long *) (0x0000fffffffff000 & *page_table);
+	else {
+		if (!(tmp=get_free_page()))
+			return 0;
+		*page_table = tmp|7;
+		page_table = (unsigned long *) tmp;
+	}
+	page_table += (unsigned long *) ((address>>18) & 0xff8);
+	if ((*page_table)&1)
+		page_table = (unsigned long *) (0x0000fffffffff000 & *page_table);
+	else {
+		if (!(tmp=get_free_page()))
+			return 0;
+		*page_table = tmp|7;
+		page_table = (unsigned long *) tmp;
+	}
+	page_table[(address>>12) & 0x3ff] = page | 7;
+/* no need for invalidate */
+	return page;
+}
+#endif
 
 void un_wp_page(unsigned long * table_entry)
 {
@@ -491,8 +537,22 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 	to &= 0x0000fffffffff000;
 	to_page = to + ((address>>27) & 0xff8);
 	to = *(unsigned long *) to_page
+	if (!(to & 1)) {
+		if ((to = get_free_page()))
+			*(unsigned long *) to_page = to | 7;
+		else
+			oom();
+	}
+	to &= 0x0000fffffffff000;
 	to_page = to + ((address>>18) & 0xff8);
 	to = *(unsigned long *) to_page
+	if (!(to & 1)) {
+		if ((to = get_free_page()))
+			*(unsigned long *) to_page = to | 7;
+		else
+			oom();
+	}
+	to &= 0x0000fffffffff000;
 	to_page = to + ((address>>9) & 0xff8);
 	if (1 & *(unsigned long *) to_page)
 		panic("try_to_share: to_page already exists");
