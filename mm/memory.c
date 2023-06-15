@@ -197,6 +197,7 @@ int free_page_tables(unsigned long from,unsigned long size)
  * 1 Mb-range, so the pages can be shared with the kernel. Thus the
  * special case for nr=xxxx.
  */
+#ifdef __X86__
 int copy_page_tables(unsigned long from,unsigned long to,long size)
 {
 	unsigned long * from_page_table;
@@ -237,6 +238,50 @@ int copy_page_tables(unsigned long from,unsigned long to,long size)
 	invalidate();
 	return 0;
 }
+#endif
+
+#ifdef __X64__
+int copy_page_tables(unsigned long from,unsigned long to,long size)
+{
+	unsigned long * from_page_table;
+	unsigned long * to_page_table;
+	unsigned long this_page;
+	unsigned long * from_dir, * to_dir;
+	unsigned long nr;
+
+	if ((from&0x1fffff) || (to&0x1fffff))
+		panic("copy_page_tables called with wrong alignment");
+	from_dir = (unsigned long *) ((from>>36) & 0xff8); /* _pg_dir = 0 */
+	to_dir = (unsigned long *) ((to>>36) & 0xff8);
+	size = ((unsigned) (size+0x1fffff)) >> 21;
+	for( ; size-->0 ; from_dir++,to_dir++) {
+		if (1 & *to_dir)
+			panic("copy_page_tables: already exist");
+		if (!(1 & *from_dir))
+			continue;
+		from_page_table = (unsigned long *) (0x0000fffffffff000 & *from_dir);
+		if (!(to_page_table = (unsigned long *) get_free_page()))
+			return -1;	/* Out of memory, see freeing */
+		*to_dir = ((unsigned long) to_page_table) | 7;
+		nr = (from==0)?0xA0:512;
+		for ( ; nr-- > 0 ; from_page_table++,to_page_table++) {
+			this_page = *from_page_table;
+			if (!(1 & this_page))
+				continue;
+			this_page &= ~2;
+			*to_page_table = this_page;
+			if (this_page > LOW_MEM) {
+				*from_page_table = this_page;
+				this_page -= LOW_MEM;
+				this_page >>= 12;
+				mem_map[this_page]++;
+			}
+		}
+	}
+	invalidate();
+	return 0;
+}
+#endif
 
 /*
  * This function puts a page in memory at the wanted address.
