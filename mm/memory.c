@@ -308,6 +308,7 @@ void do_wp_page(unsigned long error_code,unsigned long address)
 
 }
 
+#ifdef __X86__
 void write_verify(unsigned long address)
 {
 	unsigned long page;
@@ -320,6 +321,26 @@ void write_verify(unsigned long address)
 		un_wp_page((unsigned long *) page);
 	return;
 }
+#endif
+
+#ifdef __X64__
+void write_verify(unsigned long address)
+{
+	unsigned long page;
+
+	if (!( (page = *((unsigned long *) ((address>>36) & 0xff8)) )&1))
+		return;
+	if (!( (page = *((unsigned long *) ((page&0x0000fffffffff000)+((address>>27) & 0xff8))) )&1))
+		return;
+	if (!( (page = *((unsigned long *) ((page&0x0000fffffffff000)+((address>>18) & 0xff8))) )&1))
+		return;
+	page &= 0x0000fffffffff000;
+	page += ((address>>9) & 0xff8);
+	if ((3 & *(unsigned long *) page) == 1)  /* non-writeable, present */
+		un_wp_page((unsigned long *) page);
+	return;
+}
+#endif
 
 void get_empty_page(unsigned long address)
 {
