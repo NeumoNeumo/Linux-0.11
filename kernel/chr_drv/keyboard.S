@@ -19,11 +19,19 @@
  * these are for the keyboard read functions
  */
 size	= 1024		/* must be a power of two ! And MUST be the same
-			   as in tty_io.c !!!! */
+			          as in tty_io.c !!!! */
+#ifdef __X86__
 head = 4
 tail = 8
 proc_list = 12
 buf = 16
+#elif __X64__
+head = 4
+tail = 8
+proc_list = 16
+buf = 20
+#endif
+
 
 mode:	.byte 0		/* caps, alt, ctrl and shift mode */
 leds:	.byte 2		/* num-lock, caps, scroll-lock mode (nom-lock on) */
