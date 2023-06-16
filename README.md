@@ -84,7 +84,50 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 2. Physical address space: extended to 52 bits (a given CPU may implement
    less than this). In essence long mode adds another mode to the CPU.
    [source](https://wiki.osdev.org/X86-64#How_do_I_enable_Long_Mode_.3F)
-3. 
+
+3. Register lifetime: If we program the system in solely assembly, it is fine to
+	 use any registers we want. But if some of our codes are compiled by
+	 compilers, it should be keep in mind which registers are preserved by
+	 function caller and which by callee. The standard is described in abstract
+	 binary interface(ABI). Linux 0.11 uses gcc to compile, which abides by System
+	 V ABI. There are some differences between the standard in x86 and that in
+	 x64.
+
+	 In x86,
+
+	 > Functions preserve the registers ebx, esi, edi, ebp, and esp; while eax,
+	 > ecx, edx are scratch registers.
+
+	 However, in x64, 
+
+	 > Functions preserve the registers rbx, rsp, rbp, r12, r13, r14, and r15;
+	 > while rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11 are scratch registers
+
+	 Source: https://wiki.osdev.org/System_V_ABI
+
+4. Calling convention: How to pass parameters and how the procedure returns
+	 results are also part of ABI.
+
+	 In x86,
+
+	 > Parameters to functions are passed on the stack in reverse order such that
+	 > the first parameter is the last value pushed to the stack, which will then
+	 > be the lowest value on the stack.
+
+	 However, in x64,
+
+	 > Parameters to functions are passed in the registers rdi, rsi, rdx, rcx, r8,
+	 > r9, and further values are passed on the stack in reverse order.
+
+	 Source: https://wiki.osdev.org/System_V_ABI
+
+It does not matter if we do not call c functions since the values of`ax` and
+`bx` are preserved in the stack. But we invoke the function `do_tty_interrupt`
+in `tty_io`. In the System V ABI, which is adopted in linux, `rax`, `rdi`,
+`rsi`, `rdx`, `rcx`, `r8`, `r9`, `r10`, `r11` are not preserved across function
+calls meaning that these registers may be used in c functions. So we need to
+preserved them in the stack in advance.
+
 
 ## 2.3 Roadmap
 - [x] Activate long mode @NeumoNeumo
@@ -162,7 +205,7 @@ The x64 boot process can be summarized as follows:
 - Setup TSS for kernel stack
 - Jump to main.c
 
-## FAQ
+## FAQ(Boot)
 
 1. Why do we need to setup gdt/ldt in setup64.s since we will reset it in
    head64.s?
@@ -239,3 +282,19 @@ Memory map overview. Source: https://wiki.osdev.org/Memory_Map_(x86)
 We need BIOS interrupt, which is designed for real mode, to load `system`.
 However, we cannot reach the memory beyond 1MB in real mode. So unreal mode is
 required.
+
+## chr_drv
+	
+## FAQ(chr_drv)
+1. Why we change `ax`, `bx` registers to `di`, `si`?
+
+It does not matter if we do not call c functions since the values of`ax` and
+`bx` are preserved in the stack. But we invoke the function `do_tty_interrupt`
+in `tty_io`. In the System V ABI, which is adopted in linux, `rax`, `rdi`,
+`rsi`, `rdx`, `rcx`, `r8`, `r9`, `r10`, `r11` are not preserved across function
+calls meaning that these registers may be used in c functions. So we need to
+preserved them in the stack in advance.
+
+FYI, see pp.21 in [System V Application Binary Interface AMD64 Architecture
+Processor Supplement Draft Version
+0.99.6](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf)

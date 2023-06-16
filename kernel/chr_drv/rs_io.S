@@ -16,13 +16,20 @@
 size	= 1024				/* must be power of two !
 					   and must match the value
 					   in tty_io.c!!! */
-
+#ifdef __X86__
 /* these are the offsets into the read/write buffer structures */
 rs_addr = 0
 head = 4
 tail = 8
 proc_list = 12
 buf = 16
+#elif __X64__
+rs_addr = 0
+head = 4
+tail = 8
+proc_list = 16
+buf = 20
+#enfif
 
 startup	= 256		/* chars left in write queue when we restart it */
 
@@ -32,23 +39,36 @@ startup	= 256		/* chars left in write queue when we restart it */
  */
 .align 2
 rs1_interrupt:
-	pushl $table_list+8
+#ifdef __X86__
+	pushl $table_list+tail
 	jmp rs_int
 .align 2
 rs2_interrupt:
-	pushl $table_list+16
+	pushl $table_list+buf
 rs_int:
+#ifdef __X86__
 	pushl %edx
 	pushl %ecx
 	pushl %ebx
 	pushl %eax
 	push %es
 	push %ds		/* as this is an interrupt, we cannot */
-	pushl $0x10		/* know that bs is ok. Load it */
-	pop %ds
-	pushl $0x10
-	pop %es
-	movl 24(%esp),%edx
+	mov $0x10, %ax		/* know that bs is ok. Load it */
+	mov %ax, %ds
+	mov %ax, %es
+#elif __X64__
+	pushq %rdx
+	pushq %rcx
+	pushq %rbx
+	pushq %rax
+	pushq %rdi
+	pushq %rsi
+	pushq %r8
+	pushq %r9
+	pushq %r10
+	pushq %r11
+#endif
+	movl 24(%esp),%edx // TODO64
 	movl (%edx),%edx
 	movl rs_addr(%edx),%edx
 	addl $2,%edx		/* interrupt ident. reg */
@@ -67,6 +87,7 @@ rep_int:
 	jmp rep_int
 end:	movb $0x20,%al
 	outb %al,$0x20		/* EOI */
+#ifdef __X86__
 	pop %ds
 	pop %es
 	popl %eax
@@ -74,6 +95,18 @@ end:	movb $0x20,%al
 	popl %ecx
 	popl %edx
 	addl $4,%esp		# jump over _table_list entry
+#elif __X64__
+	pop %r11
+	pop %r10
+	pop %r9
+	pop %r8
+	pop %rsi
+	pop %rdi
+	pop %rax
+	pop %rbx
+	pop %rcx
+	pop %rdx
+#endif
 	iret
 
 jmp_table:
