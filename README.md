@@ -121,6 +121,8 @@ from [url](https://josemariasola.github.io/reference/assembler/Stanford%20CS107%
 
 	 Source: https://wiki.osdev.org/System_V_ABI
 
+	 FYI, 
+
 It does not matter if we do not call c functions since the values of`ax` and
 `bx` are preserved in the stack. But we invoke the function `do_tty_interrupt`
 in `tty_io`. In the System V ABI, which is adopted in linux, `rax`, `rdi`,
@@ -128,6 +130,21 @@ in `tty_io`. In the System V ABI, which is adopted in linux, `rax`, `rdi`,
 calls meaning that these registers may be used in c functions. So we need to
 preserved them in the stack in advance.
 
+
+
+5. TSS: There is a huge difference in Task State Segment(TSS). In x86, it is
+	 used to store the context of a task thus enabling hardware task switching.
+	 However, this mechanism is slow and unsupported in x64. So we have to
+	 implement task switching in software. In x64, TSS is used to store the tack
+	 pointers for interrupts or privilege level switches and the offset to a I/O
+	 permission bit map.
+
+6. Segmentation: In x64, the function of segmentation is mostly replaced by
+	 paging mechanism. In the long mode, segmentation creates a flat 64-bit
+	 linear-address space, which means the space partition used in linux 0.11,
+	 namely, 64MB for each process in linear space, is largely deprecated. As a
+	 solution, we spare the lower half linear address as the user space and the
+	 higher half as kernel space (higher half kernel, HHK).
 
 ## 2.3 Roadmap
 - [x] Activate long mode @NeumoNeumo
@@ -277,24 +294,17 @@ system can exceeds 1MB.
 ```
 Memory map overview. Source: https://wiki.osdev.org/Memory_Map_(x86)
 
-5. Why we need unreal mode to load `system` to 0x100000?
-
-We need BIOS interrupt, which is designed for real mode, to load `system`.
+5. Why we need unreal mode to load `system` to 0x100000? We need BIOS interrupt, which is designed for real mode, to load `system`.
 However, we cannot reach the memory beyond 1MB in real mode. So unreal mode is
 required.
 
-## chr_drv
-	
-## FAQ(chr_drv)
-1. Why we change `ax`, `bx` registers to `di`, `si`?
 
-It does not matter if we do not call c functions since the values of`ax` and
-`bx` are preserved in the stack. But we invoke the function `do_tty_interrupt`
-in `tty_io`. In the System V ABI, which is adopted in linux, `rax`, `rdi`,
-`rsi`, `rdx`, `rcx`, `r8`, `r9`, `r10`, `r11` are not preserved across function
-calls meaning that these registers may be used in c functions. So we need to
-preserved them in the stack in advance.
-
-FYI, see pp.21 in [System V Application Binary Interface AMD64 Architecture
-Processor Supplement Draft Version
-0.99.6](https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf)
+## Reference
+1. Intel® 64 and IA-32 Architectures Developer's Manual, Volume 3A: System
+	 Programming Guide, Part 1
+2. Intel® 64 and IA-32 Architectures Developer's Manual, Volume 2, Instruction
+	 Set Reference
+3. https://wiki.osdev.org/
+4. linux内核完全注释 5.0 by 赵炯
+5. 一个64位操作系统的设计与实现 by 田宇
+6. https://github.com/thomasloven/mittos64
