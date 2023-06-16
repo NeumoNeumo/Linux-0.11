@@ -560,8 +560,12 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 	from &= 0x0000fffffffff000;
 	from_page = from + ((address>>27) & 0xff8); //12,21,30,39
 	from = *(unsigned long *) from_page;
+	if (!(from & 1))
+		return 0;
 	from_page = from + ((address>>18) & 0xff8);
 	from = *(unsigned long *) from_page;
+	if (!(from & 1))
+		return 0;
 	from_page = from + ((address>>9) & 0xff8);
 	phys_addr = *(unsigned long *) from_page;
 /* is the page clean and present? */
