@@ -60,6 +60,8 @@ static unsigned char mem_map [ PAGING_PAGES ] = {0,};
  * Get physical address of first (actually last :-) free page, and mark it
  * used. If no free pages left, return 0.
  */
+
+#ifdef __X86__
 unsigned long get_free_page(void)
 {
 register unsigned long __res asm("ax");
@@ -81,6 +83,31 @@ __asm__("std ; repne ; scasb\n\t"
 	);
 return __res;
 }
+#endif
+
+#ifdef __X64__
+unsigned long get_free_page(void)
+{
+register unsigned long __res asm("ax");
+
+__asm__("std ; repne ; scasb\n\t"
+	"jne 1f\n\t"
+	"movb $1,1(%%edi)\n\t"
+	"sall $12,%%ecx\n\t"
+	"addq %2,%%ecx\n\t"
+	"movq %%ecx,%%edx\n\t"
+	"movq $1024,%%ecx\n\t"
+	"leaq 4092(%%edx),%%edi\n\t"
+	"rep ; stosl\n\t"
+	" movq %%edx,%%eax\n"
+	"1: cld"
+	:"=a" (__res)
+	:"0" (0),"i" (LOW_MEM),"c" (PAGING_PAGES),
+	"D" (mem_map+PAGING_PAGES-1)
+	);
+return __res;
+}
+#endif
 
 /*
  * Free a page of memory at physical address 'addr'. Used by
@@ -560,8 +587,12 @@ static int try_to_share(unsigned long address, struct task_struct * p)
 	from &= 0x0000fffffffff000;
 	from_page = from + ((address>>27) & 0xff8); //12,21,30,39
 	from = *(unsigned long *) from_page;
+	if (!(from & 1))
+		return 0;
 	from_page = from + ((address>>18) & 0xff8);
 	from = *(unsigned long *) from_page;
+	if (!(from & 1))
+		return 0;
 	from_page = from + ((address>>9) & 0xff8);
 	phys_addr = *(unsigned long *) from_page;
 /* is the page clean and present? */
