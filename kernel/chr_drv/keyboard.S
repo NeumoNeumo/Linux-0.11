@@ -99,7 +99,7 @@ e0_e1:	inb $0x61,%al
 #elif __X64__
 	pushq $0
 	call do_tty_interrupt
-	addq $4,%rsp
+	addq $8,%rsp
 	pop %r11
 	pop %r10
 	pop %r9
