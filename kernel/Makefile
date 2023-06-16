@@ -39,8 +39,14 @@ kernel.o: $(OBJS)
 	@$(LD) $(LDFLAGS) -o kernel.o $(OBJS)
 	@sync
 
+asm.s: asm.S
+	@$(CPP) -E asm.S -o asm.s
+
+system_call.s: system_call.S
+	@$(CPP) -E system_call.S -o system_call.s
+
 clean:
-	@rm -f core *.o *.a tmp_make keyboard.s
+	@rm -f core *.o *.a tmp_make *.s
 	@for i in *.c;do rm -f `basename $$i .c`.s;done
 	@for i in chr_drv blk_drv math; do make clean -C $$i; done
 

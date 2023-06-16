@@ -29,7 +29,7 @@ head = 4
 tail = 8
 proc_list = 16
 buf = 20
-#enfif
+#endif
 
 startup	= 256		/* chars left in write queue when we restart it */
 
@@ -39,12 +39,11 @@ startup	= 256		/* chars left in write queue when we restart it */
  */
 .align 2
 rs1_interrupt:
-#ifdef __X86__
-	pushl $table_list+tail
+	push $table_list+tail
 	jmp rs_int
 .align 2
 rs2_interrupt:
-	pushl $table_list+buf
+	push $table_list+buf
 rs_int:
 #ifdef __X86__
 	pushl %edx
@@ -80,10 +79,18 @@ rep_int:
 	cmpb $6,%al		/* this shouldn't happen, but ... */
 	ja end
 	movl 24(%esp),%ecx
+#ifdef __X86__
 	pushl %edx
+#elif __X64__
+	pushq %rdx
+#endif
 	subl $2,%edx
 	call *jmp_table(,%eax,2)		/* NOTE! not *4, bit0 is 0 already */
+#ifdef __X86__
 	popl %edx
+#elif __X64__
+	popq %rdx
+#endif
 	jmp rep_int
 end:	movb $0x20,%al
 	outb %al,$0x20		/* EOI */
@@ -95,6 +102,7 @@ end:	movb $0x20,%al
 	popl %ecx
 	popl %edx
 	addl $4,%esp		# jump over _table_list entry
+	iret
 #elif __X64__
 	pop %r11
 	pop %r10
@@ -106,8 +114,8 @@ end:	movb $0x20,%al
 	pop %rbx
 	pop %rcx
 	pop %rdx
+	iretq
 #endif
-	iret
 
 jmp_table:
 	.long modem_status,write_char,read_char,line_status
@@ -138,7 +146,12 @@ read_char:
 	cmpl tail(%ecx),%ebx
 	je 1f
 	movl %ebx,head(%ecx)
-1:	pushl %edx
+1:
+#ifdef __X86__
+  pushl %edx
+#elif __X64__
+  pushq %rdx
+#endif
 	call do_tty_interrupt
 	addl $4,%esp
 	ret

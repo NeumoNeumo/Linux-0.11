@@ -1,5 +1,7 @@
 #ifndef _SEGMENT_H
 #define _SEGMENT_H
+#include <stdint.h>
+
 static inline unsigned char get_fs_byte(const char * addr)
 {
 	unsigned register char _v;
@@ -16,9 +18,9 @@ static inline unsigned short get_fs_word(const unsigned short *addr)
 	return _v;
 }
 
-static inline unsigned long get_fs_long(const unsigned long *addr)
+static inline uint32_t get_fs_long(const unsigned long *addr)
 {
-	unsigned long _v;
+	uint32_t _v;
 
 	__asm__ ("movl %%fs:%1,%0":"=r" (_v):"m" (*addr)); \
 	return _v;
@@ -34,7 +36,7 @@ static inline void put_fs_word(short val,short * addr)
 __asm__ ("movw %0,%%fs:%1"::"r" (val),"m" (*addr));
 }
 
-static inline void put_fs_long(unsigned long val,unsigned long * addr)
+static inline void put_fs_long(uint32_t val,unsigned long * addr)
 {
 __asm__ ("movl %0,%%fs:%1"::"r" (val),"m" (*addr));
 }

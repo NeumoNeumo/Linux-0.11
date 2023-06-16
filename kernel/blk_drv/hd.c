@@ -101,7 +101,7 @@ int sys_setup(void * BIOS)
 	}
 
 	/*
-		We querry CMOS about hard disks : it could be that 
+		We query CMOS about hard disks : it could be that 
 		we have a SCSI/ESDI/etc controller that is BIOS
 		compatable with ST-506, and thus showing up in our
 		BIOS table, but not register compatable, and therefore

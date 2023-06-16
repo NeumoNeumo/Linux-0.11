@@ -202,6 +202,8 @@ sofard:
 
 sofar_image: init/main.o
 	@make -C boot
+	@make -C kernel/chr_drv
+	@make -C kernel/blk_drv
 	@make head.o -C boot/
 	@$(LD) $(LDFLAGS) -o tools/system boot/head.o init/main.o
 	@nm tools/system | grep -v '\(compiled\)\|\(\.o$$\)\|\( [aU] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)'| sort > System.map 

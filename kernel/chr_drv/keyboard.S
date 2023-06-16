@@ -96,6 +96,7 @@ e0_e1:	inb $0x61,%al
 	popl %ecx
 	popl %ebx
 	popl %eax
+	iret
 #elif __X64__
 	pushq $0
 	call do_tty_interrupt
@@ -110,8 +111,8 @@ e0_e1:	inb $0x61,%al
 	pop %rcx
 	pop %rbx
 	pop %rax
+	iretq
 #endif
-	iret
 set_e0:	movb $1,e0
 	jmp e0_e1
 set_e1:	movb $2,e0
@@ -644,11 +645,11 @@ key_table:
  * there is no timeout - if the buffer doesn't empty, we hang.
  */
 kb_wait:
-	pushl %eax
+	push %ax
 1:	inb $0x64,%al
 	testb $0x02,%al
 	jne 1b
-	popl %eax
+	pop %ax
 	ret
 /*
  * This routine reboots the machine by asking the keyboard
