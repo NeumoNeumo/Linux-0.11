@@ -43,7 +43,8 @@ static inline char * strncpy(char * dest,const char *src,int count)
 
 inline char * strcat(char * dest,const char * src)
 {
-        __asm__("cld\n\t"
+        #ifdef __X86__
+               __asm__("cld\n\t"
                 "repne\n\t"
                 "scasb\n\t"
                 "decl %1\n"
@@ -52,11 +53,23 @@ inline char * strcat(char * dest,const char * src)
                 "testb %%al,%%al\n\t"
                 "jne 1b"
                 ::"S" (src),"D" (dest),"a" (0),"c" (0xffffffff));
+        #elif __X64__
+        __asm__("cld\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "decq %1\n"
+                "1:\tlodsb\n\t"
+                "stosb\n\t"
+                "testb %%al,%%al\n\t"
+                "jne 1b"
+                ::"S" (src),"D" (dest),"a" (0),"c" (0xffffffff));
+        #endif
         return dest;
 }
 
 static inline char * strncat(char * dest,const char * src,int count)
 {
+        #ifdef __X86__
         __asm__("cld\n\t"
                 "repne\n\t"
                 "scasb\n\t"
@@ -72,6 +85,23 @@ static inline char * strncat(char * dest,const char * src,int count)
                 "stosb"
                 ::"S" (src),"D" (dest),"a" (0),"c" (0xffffffff),"g" (count)
                 );
+        #elif __X64__
+        __asm__("cld\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "decq %1\n\t"
+                "movl %4,%3\n"
+                "1:\tdecl %3\n\t"
+                "js 2f\n\t"
+                "lodsb\n\t"
+                "stosb\n\t"
+                "testb %%al,%%al\n\t"
+                "jne 1b\n"
+                "2:\txorl %2,%2\n\t"
+                "stosb"
+                ::"S" (src),"D" (dest),"a" (0),"c" (0xffffffff),"g" (count)
+                );
+        #endif
         return dest;
 }
 
@@ -119,6 +149,8 @@ static inline int strncmp(const char * cs,const char * ct,int count)
 static inline char * strchr(const char * s,char c)
 {
         register char * __res ;
+        
+        #ifdef __X86__
         __asm__("cld\n\t"
                 "movb %%al,%%ah\n"
                 "1:\tlodsb\n\t"
@@ -130,12 +162,27 @@ static inline char * strchr(const char * s,char c)
                 "2:\tmovl %1,%0\n\t"
                 "decl %0"
                 :"=a" (__res):"S" (s),"0" (c));
+        #elif __X64__
+        __asm__("cld\n\t"
+                "movb %%al,%%ah\n"
+                "1:\tlodsb\n\t"
+                "cmpb %%ah,%%al\n\t"
+                "je 2f\n\t"
+                "testb %%al,%%al\n\t"
+                "jne 1b\n\t"
+                "movq $1,%1\n"
+                "2:\tmov %1,%0\n\t"
+                "decq %0"
+                :"=a" (__res):"S" (s),"0" (c));
+        #endif
         return __res;
 }
 
 static inline char * strrchr(const char * s,char c)
 {
-        register char * __res; 
+        register char * __res;
+
+        #ifdef __X86__
         __asm__("cld\n\t"
                 "movb %%al,%%ah\n"
                 "1:\tlodsb\n\t"
@@ -145,13 +192,27 @@ static inline char * strrchr(const char * s,char c)
                 "decl %0\n"
                 "2:\ttestb %%al,%%al\n\t"
                 "jne 1b"
+                :"=d" (__res):"0" (0),"S" (s),"a" (c)); 
+        #elif __X64__
+        __asm__("cld\n\t"
+                "movb %%al,%%ah\n"
+                "1:\tlodsb\n\t"
+                "cmpb %%ah,%%al\n\t"
+                "jne 2f\n\t"
+                "movslq %%esi,%0\n\t"
+                "decq %0\n"
+                "2:\ttestb %%al,%%al\n\t"
+                "jne 1b"
                 :"=d" (__res):"0" (0),"S" (s),"a" (c));
+        #endif
         return __res;
 }
 
 inline int strspn(const char * cs, const char * ct)
 {
         register char * __res;
+
+        #ifdef __X86__
         __asm__("cld\n\t"
                 "movl %4,%%edi\n\t"
                 "repne\n\t"
@@ -170,12 +231,34 @@ inline int strspn(const char * cs, const char * ct)
                 "2:\tdecl %0"
                 :"=S" (__res):"a" (0),"c" (0xffffffff),"0" (cs),"g" (ct)
                 );
+        #elif __X64__
+        __asm__("cld\n\t"
+                "movl %4,%%edi\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "notl %%ecx\n\t"
+                "decl %%ecx\n\t"
+                "movl %%ecx,%%edx\n"
+                "1:\tlodsb\n\t"
+                "testb %%al,%%al\n\t"
+                "je 2f\n\t"
+                "movl %4,%%edi\n\t"
+                "movl %%edx,%%ecx\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "je 1b\n"
+                "2:\tdecq %0"
+                :"=S" (__res):"a" (0),"c" (0xffffffff),"0" (cs),"g" (ct)
+                );
+        #endif
         return __res-cs;
 }
 
 inline int strcspn(const char * cs, const char * ct)
 {
         register char * __res;
+
+        #ifdef __X86__
         __asm__("cld\n\t"
                 "movl %4,%%edi\n\t"
                 "repne\n\t"
@@ -194,12 +277,34 @@ inline int strcspn(const char * cs, const char * ct)
                 "2:\tdecl %0"
                 :"=S" (__res):"a" (0),"c" (0xffffffff),"0" (cs),"g" (ct)
                 );
+        #elif __X64__
+        __asm__("cld\n\t"
+                "movl %4,%%edi\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "notl %%ecx\n\t"
+                "decl %%ecx\n\t"
+                "movl %%ecx,%%edx\n"
+                "1:\tlodsb\n\t"
+                "testb %%al,%%al\n\t"
+                "je 2f\n\t"
+                "movl %4,%%edi\n\t"
+                "movl %%edx,%%ecx\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "jne 1b\n"
+                "2:\tdecq %0"
+                :"=S" (__res):"a" (0),"c" (0xffffffff),"0" (cs),"g" (ct)
+                );
+        #endif
         return __res-cs;
 }
 
 inline char * strpbrk(const char * cs,const char * ct)
 {
         register char * __res ;
+
+        #ifdef __X86__
         __asm__("cld\n\t"
                 "movl %4,%%edi\n\t"
                 "repne\n\t"
@@ -221,6 +326,29 @@ inline char * strpbrk(const char * cs,const char * ct)
                 "3:"
                 :"=S" (__res):"a" (0),"c" (0xffffffff),"0" (cs),"g" (ct)
                 );
+        #elif __X64__
+        __asm__("cld\n\t"
+                "movl %4,%%edi\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "notl %%ecx\n\t"
+                "decl %%ecx\n\t"
+                "movl %%ecx,%%edx\n"
+                "1:\tlodsb\n\t"
+                "testb %%al,%%al\n\t"
+                "je 2f\n\t"
+                "movl %4,%%edi\n\t"
+                "movl %%edx,%%ecx\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "jne 1b\n\t"
+                "decq %0\n\t"
+                "jmp 3f\n"
+                "2:\txorq %0,%0\n"
+                "3:"
+                :"=S" (__res):"a" (0),"c" (0xffffffff),"0" (cs),"g" (ct)
+                );
+        #endif
         return __res;
 }
 
@@ -266,6 +394,8 @@ inline int strlen(const char * s)
 inline char * strtok(char * s,const char * ct)
 {
         register char * __res ;
+
+        #ifdef __X86__
         __asm__("testl %1,%1\n\t"
                 "jne 1f\n\t"
                 "testl %0,%0\n\t"
@@ -319,6 +449,61 @@ inline char * strtok(char * s,const char * ct)
                 :"=b" (__res),"=S" (___strtok)
                 :"0" (___strtok),"1" (s),"g" (ct)
                 );
+        #elif __X64__
+        __asm__("testq %1,%1\n\t"
+                "jne 1f\n\t"
+                "testq %0,%0\n\t"
+                "je 8f\n\t"
+                "movq %0,%1\n"
+                "1:\txorq %0,%0\n\t"
+                "movl $-1,%%ecx\n\t"
+                "xorl %%eax,%%eax\n\t"
+                "cld\n\t"
+                "movl %4,%%edi\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "notl %%ecx\n\t"
+                "decl %%ecx\n\t"
+                "je 7f\n\t"			/* empty delimeter-string */
+                "movl %%ecx,%%edx\n"
+                "2:\tlodsb\n\t"
+                "testb %%al,%%al\n\t"
+                "je 7f\n\t"
+                "movl %4,%%edi\n\t"
+                "movl %%edx,%%ecx\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "je 2b\n\t"
+                "decq %1\n\t"
+                "cmpb $0,(%1)\n\t"
+                "je 7f\n\t"
+                "movq %1,%0\n"
+                "3:\tlodsb\n\t"
+                "testb %%al,%%al\n\t"
+                "je 5f\n\t"
+                "movl %4,%%edi\n\t"
+                "movl %%edx,%%ecx\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "jne 3b\n\t"
+                "decq %1\n\t"
+                "cmpb $0,(%1)\n\t"
+                "je 5f\n\t"
+                "movb $0,(%1)\n\t"
+                "incq %1\n\t"
+                "jmp 6f\n"
+                "5:\txorq %1,%1\n"
+                "6:\tcmpb $0,(%0)\n\t"
+                "jne 7f\n\t"
+                "xorq %0,%0\n"
+                "7:\ttestq %0,%0\n\t"
+                "jne 8f\n\t"
+                "movq %0,%1\n"
+                "8:"
+                :"=b" (__res),"=S" (___strtok)
+                :"0" (___strtok),"1" (s),"g" (ct)
+                );
+        #endif
         return __res;
 }
 
@@ -370,6 +555,8 @@ inline void * memchr(const void * cs,char c,int count)
         register void * __res ;
         if (!count)
                 return NULL;
+        
+        #ifdef __X86__
         __asm__("cld\n\t"
                 "repne\n\t"
                 "scasb\n\t"
@@ -378,6 +565,16 @@ inline void * memchr(const void * cs,char c,int count)
                 "1:\tdecl %0"
                 :"=D" (__res):"a" (c),"D" (cs),"c" (count)
                 );
+        #elif __X64__
+        __asm__("cld\n\t"
+                "repne\n\t"
+                "scasb\n\t"
+                "je 1f\n\t"
+                "movq $1,%0\n"
+                "1:\tdecq %0"
+                :"=D" (__res):"a" (c),"D" (cs),"c" (count)
+                );
+        #endif
         return __res;
 }
 
