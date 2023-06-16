@@ -60,6 +60,8 @@ static unsigned char mem_map [ PAGING_PAGES ] = {0,};
  * Get physical address of first (actually last :-) free page, and mark it
  * used. If no free pages left, return 0.
  */
+
+#ifdef __X86__
 unsigned long get_free_page(void)
 {
 register unsigned long __res asm("ax");
@@ -81,6 +83,31 @@ __asm__("std ; repne ; scasb\n\t"
 	);
 return __res;
 }
+#endif
+
+#ifdef __X64__
+unsigned long get_free_page(void)
+{
+register unsigned long __res asm("ax");
+
+__asm__("std ; repne ; scasb\n\t"
+	"jne 1f\n\t"
+	"movb $1,1(%%edi)\n\t"
+	"sall $12,%%ecx\n\t"
+	"addq %2,%%ecx\n\t"
+	"movq %%ecx,%%edx\n\t"
+	"movq $1024,%%ecx\n\t"
+	"leaq 4092(%%edx),%%edi\n\t"
+	"rep ; stosl\n\t"
+	" movq %%edx,%%eax\n"
+	"1: cld"
+	:"=a" (__res)
+	:"0" (0),"i" (LOW_MEM),"c" (PAGING_PAGES),
+	"D" (mem_map+PAGING_PAGES-1)
+	);
+return __res;
+}
+#endif
 
 /*
  * Free a page of memory at physical address 'addr'. Used by
