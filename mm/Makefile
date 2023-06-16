@@ -25,7 +25,7 @@ page.s: page.S
 	@$(CPP) -E -o page.s page.S
 
 clean:
-	@rm -f core *.o *.a tmp_make
+	@rm -f core *.o *.a tmp_make page.s
 	@for i in *.c;do rm -f `basename $$i .c`.s;done
 
 dep:
